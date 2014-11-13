@@ -459,7 +459,8 @@ public:
   /**
    * \brief Return a string representation of the packet
    *
-   * An empty string is returned if you haven't called EnablePrinting ()
+   * An empty string is returned if you don't call EnablePrinting or
+   * EnableChecking before.
    *
    * \return String representation
    */
