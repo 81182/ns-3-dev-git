@@ -51,7 +51,7 @@ class Socket;
 class Ipv4RawSocketImpl;
 class IpL4Protocol;
 class Icmpv4L4Protocol;
-
+class Queue;
 
 /**
  * \brief Implement the Ipv4 layer.
@@ -95,12 +95,13 @@ public:
    */
   enum DropReason 
   {
-    DROP_TTL_EXPIRED = 1,   /**< Packet TTL has expired */
-    DROP_NO_ROUTE,   /**< No route to host */
-    DROP_BAD_CHECKSUM,   /**< Bad checksum */
+    DROP_TTL_EXPIRED = 1,  /**< Packet TTL has expired */
+    DROP_NO_ROUTE,         /**< No route to host */
+    DROP_BAD_CHECKSUM,     /**< Bad checksum */
     DROP_INTERFACE_DOWN,   /**< Interface is down so can not send packet */
-    DROP_ROUTE_ERROR,   /**< Route error */
-    DROP_FRAGMENT_TIMEOUT /**< Fragment timeout exceeded */
+    DROP_ROUTE_ERROR,      /**< Route error */
+    DROP_FRAGMENT_TIMEOUT, /**< Fragment timeout exceeded */
+    DROP_NO_ENQUEUE        /**< No space in Queue */
   };
 
   /**
@@ -272,7 +273,53 @@ public:
     (const Ipv4Header & header, const Ptr<const Packet> packet,
      const DropReason reason, const Ptr<const Ipv4> ipv4,
      const uint32_t interface);
-   
+
+  /*
+   * \brief Set queue for input packet received on the specified dev
+   *
+   * \param dev Device to attach queue to
+   * \param queue Queue to attach
+   */
+  void SetInputQueue (Ptr<NetDevice> dev, Ptr<Queue> queue);
+
+  /**
+   * \brief Get input queue for a specified device
+   *
+   * \param dev Device to get input queue
+   * \return Input queue for the device specified
+   */
+  Ptr<Queue> GetInputQueue (Ptr<NetDevice> dev);
+
+  /**
+   * \brief Get output queue for a specified device
+   *
+   * \param dev Device to get output queue
+   * \return Output queue for the device specified
+   */
+  Ptr<Queue> GetOutputQueue (Ptr<NetDevice> dev);
+
+  /**
+   * \brief Set queue for output packet received on the specified dev
+   *
+   * \param dev Device to attach queue to
+   * \param queue Queue to attach
+   */
+  void SetOutputQueue (Ptr<NetDevice> dev, Ptr<Queue> queue);
+
+  /**
+   * \brief Set TypeId for the output queue
+   *
+   * \param outputQueueTid Tid specified
+   */
+  void SetOutputQueueTid (const std::string &outputQueueTid);
+
+  /**
+   * \brief Set TypeId for the input queue
+   *
+   * \param outputQueueTid Tid specified
+   */
+  void SetInputQueueTid (const std::string &inputQueueTid);
+
 protected:
 
   virtual void DoDispose (void);
@@ -424,6 +471,18 @@ private:
    * \param iif Input Interface
    */
   void HandleFragmentsTimeout ( std::pair<uint64_t, uint32_t> key, Ipv4Header & ipHeader, uint32_t iif);
+
+  /**
+   * \brief PushDown
+   * \param outDev
+   */
+  void PushDown (Ptr<NetDevice> outDev);
+
+  /**
+   * \brief BackPressureFromDevice
+   * \param dev
+   */
+  void BackPressureFromDevice (Ptr<NetDevice> dev);
   
   /**
    * \brief Container of the IPv4 Interfaces.
@@ -466,6 +525,18 @@ private:
   Ptr<Ipv4RoutingProtocol> m_routingProtocol; //!< Routing protocol associated with the stack
 
   SocketList m_sockets; //!< List of IPv4 raw sockets.
+
+  /**
+   * \brief Map between NetDevice and one queue
+   */
+  typedef std::map<Ptr<NetDevice>, Ptr<Queue> > DevQueueMap;
+  typedef DevQueueMap::iterator DevQueueMapIterator;
+  typedef std::pair<Ptr<NetDevice>, Ptr<Queue> > DevQueuePair;
+
+  std::string m_inputQueueTid;  //!< Input queue Tid
+  std::string m_outputQueueTid; //!< Output queue Tid
+  DevQueueMap m_inputQueueMap;  //!< Input queue map
+  DevQueueMap m_outputQueueMap; //!< Output queue map
 
   /**
    * \class Fragments

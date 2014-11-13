@@ -32,6 +32,8 @@
 #include "ns3/ipv4-header.h"
 #include "ns3/boolean.h"
 #include "ns3/ipv4-routing-table-entry.h"
+#include "ns3/queue.h"
+#include "ns3/string.h"
 
 #include "loopback-net-device.h"
 #include "arp-l3-protocol.h"
@@ -90,7 +92,6 @@ Ipv4L3Protocol::GetTypeId (void)
                    ObjectVectorValue (),
                    MakeObjectVectorAccessor (&Ipv4L3Protocol::m_interfaces),
                    MakeObjectVectorChecker<Ipv4Interface> ())
-
     .AddTraceSource ("SendOutgoing",
                      "A newly-generated packet by this node is "
                      "about to be queued for transmission",
@@ -106,7 +107,14 @@ Ipv4L3Protocol::GetTypeId (void)
                      "and it is being forward up the stack",
                      MakeTraceSourceAccessor (&Ipv4L3Protocol::m_localDeliverTrace),
                      "ns3::Ipv4L3Protocol::SentTracedCallback")
-
+    .AddAttribute ("InputQueueTid", "Input queue TypeId for automatic generation",
+                   StringValue ("ns3::DropTailQueue"),
+                   MakeStringAccessor (&Ipv4L3Protocol::m_inputQueueTid),
+                   MakeStringChecker ())
+    .AddAttribute ("OutputQueueTid", "Output queue TypeId for automatic generation",
+                   StringValue ("ns3::DropTailQueue"),
+                   MakeStringAccessor (&Ipv4L3Protocol::m_outputQueueTid),
+                   MakeStringChecker ())
   ;
   return tid;
 }
@@ -216,7 +224,86 @@ Ipv4L3Protocol::GetRoutingProtocol (void) const
   return m_routingProtocol;
 }
 
-void 
+void
+Ipv4L3Protocol::SetInputQueue (Ptr<NetDevice> dev, Ptr<Queue> queue)
+{
+  NS_LOG_FUNCTION (this << dev << queue);
+  DevQueueMapIterator it = m_inputQueueMap.find(dev);
+
+    if (it == m_inputQueueMap.end ())
+      {
+        m_inputQueueMap.insert(DevQueuePair (dev, queue));
+      }
+    else
+      {
+        it->second = queue;
+      }
+}
+
+void
+Ipv4L3Protocol::SetOutputQueue (Ptr<NetDevice> dev, Ptr<Queue> queue)
+{
+  NS_LOG_FUNCTION (this << dev << queue);
+  DevQueueMapIterator it = m_outputQueueMap.find(dev);
+
+    if (it == m_outputQueueMap.end ())
+      {
+        m_outputQueueMap.insert(DevQueuePair (dev, queue));
+      }
+    else
+      {
+        it->second = queue;
+      }
+}
+
+Ptr<Queue>
+Ipv4L3Protocol::GetInputQueue (Ptr<NetDevice> dev)
+{
+  NS_LOG_FUNCTION (this << dev);
+  DevQueueMapIterator it = m_inputQueueMap.find(dev);
+
+  if (it == m_inputQueueMap.end ())
+    {
+      return Ptr<Queue> (0);
+    }
+  else
+    {
+      return it->second;
+    }
+}
+
+Ptr<Queue>
+Ipv4L3Protocol::GetOutputQueue (Ptr<NetDevice> dev)
+{
+  NS_LOG_FUNCTION (this << dev);
+  DevQueueMapIterator it = m_outputQueueMap.find(dev);
+
+  if (it == m_outputQueueMap.end ())
+    {
+      return Ptr<Queue> (0);
+    }
+  else
+    {
+      return it->second;
+    }
+}
+
+
+void
+Ipv4L3Protocol::SetOutputQueueTid (const std::string &outputQueueTid)
+{
+  NS_LOG_FUNCTION (this << outputQueueTid);
+  m_outputQueueTid = outputQueueTid;
+}
+
+void
+Ipv4L3Protocol::SetInputQueueTid (const std::string &inputQueueTid)
+{
+  NS_LOG_FUNCTION (this << inputQueueTid);
+  m_inputQueueTid = inputQueueTid;
+}
+
+void
 Ipv4L3Protocol::DoDispose (void)
 {
   NS_LOG_FUNCTION (this);
@@ -304,13 +391,35 @@ Ipv4L3Protocol::AddInterface (Ptr<NetDevice> device)
   Ptr<Node> node = GetObject<Node> ();
   node->RegisterProtocolHandler (MakeCallback (&Ipv4L3Protocol::Receive, this), 
                                  Ipv4L3Protocol::PROT_NUMBER, device);
-  node->RegisterProtocolHandler (MakeCallback (&ArpL3Protocol::Receive, PeekPointer (GetObject<ArpL3Protocol> ())),
+  node->RegisterProtocolHandler (MakeCallback (&ArpL3Protocol::Receive,
+                                               PeekPointer (GetObject<ArpL3Protocol> ())),
                                  ArpL3Protocol::PROT_NUMBER, device);
 
   Ptr<Ipv4Interface> interface = CreateObject<Ipv4Interface> ();
   interface->SetNode (m_node);
   interface->SetDevice (device);
   interface->SetForwarding (m_ipForward);
+
+  device->SetBackPressureCallback(MakeCallback
+                                 (&Ipv4L3Protocol::BackPressureFromDevice,
+                                 this));
+
+  ObjectFactory factory;
+
+  if (GetInputQueue (device) == Ptr<Queue> (0))
+    {
+      factory.SetTypeId (m_inputQueueTid);
+      m_inputQueueMap.insert (DevQueuePair
+                             (device, DynamicCast<Queue> (factory.Create ())));
+    }
+
+  if (GetOutputQueue (device) == Ptr<Queue> (0))
+    {
+      factory.SetTypeId(m_outputQueueTid);
+      m_outputQueueMap.insert (DevQueuePair
+                              (device, DynamicCast<Queue> (factory.Create ())));
+    }
+
   return AddIpv4Interface (interface);
 }
 
@@ -469,8 +578,9 @@ Ipv4L3Protocol::IsDestinationAddress (Ipv4Address address, uint32_t iif) const
 }
 
 void 
-Ipv4L3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from,
-                          const Address &to, NetDevice::PacketType packetType)
+Ipv4L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p,
+                         uint16_t protocol, const Address &from,
+                         const Address &to, NetDevice::PacketType packetType)
 {
   NS_LOG_FUNCTION (this << device << p << protocol << from << to << packetType);
 
@@ -498,10 +608,41 @@ Ipv4L3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t p
               NS_LOG_LOGIC ("Dropping received packet -- interface is down");
               Ipv4Header ipHeader;
               packet->RemoveHeader (ipHeader);
-              m_dropTrace (ipHeader, packet, DROP_INTERFACE_DOWN, m_node->GetObject<Ipv4> (), interface);
+              m_dropTrace (ipHeader, packet, DROP_INTERFACE_DOWN,
+                           m_node->GetObject<Ipv4> (), interface);
               return;
             }
         }
+    }
+
+  Ptr<Queue> inputQueue = GetInputQueue (device);
+  if (inputQueue == 0)
+    {
+      // This happen mostly while doing test (nobody cares about calling
+      // AddDevice ..
+      ObjectFactory factory;
+      factory.SetTypeId (m_inputQueueTid);
+
+      inputQueue = DynamicCast<Queue> (factory.Create());
+      SetInputQueue (device, inputQueue);
+      device->SetBackPressureCallback(MakeCallback
+                                      (&Ipv4L3Protocol::BackPressureFromDevice,
+                                      this));
+    }
+
+
+  inputQueue->Enqueue(packet);
+
+  packet = inputQueue->Dequeue();
+
+  if (packet == 0)
+    {
+      NS_LOG_LOGIC ("No packet dequeued, returning");
+      Ipv4Header ipHeader;
+      packet->RemoveHeader (ipHeader);
+      m_dropTrace (ipHeader, packet, DROP_NO_ENQUEUE,
+                   m_node->GetObject<Ipv4> (), interface);
+      return;
     }
 
   Ipv4Header ipHeader;
@@ -517,10 +658,11 @@ Ipv4L3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t p
       packet->RemoveAtEnd (packet->GetSize () - ipHeader.GetPayloadSize ());
     }
 
-  if (!ipHeader.IsChecksumOk ()) 
+  if (!ipHeader.IsChecksumOk ())
     {
       NS_LOG_LOGIC ("Dropping received packet -- checksum not ok");
-      m_dropTrace (ipHeader, packet, DROP_BAD_CHECKSUM, m_node->GetObject<Ipv4> (), interface);
+      m_dropTrace (ipHeader, packet, DROP_BAD_CHECKSUM,
+                   m_node->GetObject<Ipv4> (), interface);
       return;
     }
 
@@ -652,14 +794,16 @@ Ipv4L3Protocol::Send (Ptr<Packet> packet,
            ifaceIter != m_interfaces.end (); ifaceIter++, ifaceIndex++)
         {
           Ptr<Ipv4Interface> outInterface = *ifaceIter;
-          Ptr<Packet> packetCopy = packet->Copy ();
 
-          NS_ASSERT (packetCopy->GetSize () <= outInterface->GetDevice ()->GetMtu ());
+          NS_ASSERT (packet->GetSize () <= outInterface->GetDevice ()->GetMtu ());
 
-          m_sendOutgoingTrace (ipHeader, packetCopy, ifaceIndex);
-          packetCopy->AddHeader (ipHeader);
-          m_txTrace (packetCopy, m_node->GetObject<Ipv4> (), ifaceIndex);
-          outInterface->Send (packetCopy, destination);
+          Ptr<Ipv4Route> route = Create<Ipv4Route> ();
+          route->SetDestination(destination);
+          route->SetOutputDevice(outInterface->GetDevice());
+          route->SetSource (source);
+
+          m_sendOutgoingTrace (ipHeader, packet, ifaceIndex);
+          SendRealOut (route, packet, ipHeader);
         }
       return;
     }
@@ -679,11 +823,15 @@ Ipv4L3Protocol::Send (Ptr<Packet> packet,
             {
               NS_LOG_LOGIC ("Ipv4L3Protocol::Send case 2:  subnet directed bcast to " << ifAddr.GetLocal ());
               ipHeader = BuildHeader (source, destination, protocol, packet->GetSize (), ttl, tos, mayFragment);
-              Ptr<Packet> packetCopy = packet->Copy ();
-              m_sendOutgoingTrace (ipHeader, packetCopy, ifaceIndex);
-              packetCopy->AddHeader (ipHeader);
-              m_txTrace (packetCopy, m_node->GetObject<Ipv4> (), ifaceIndex);
-              outInterface->Send (packetCopy, destination);
+
+              Ptr<Ipv4Route> route = Create<Ipv4Route> ();
+              route->SetDestination(destination);
+              route->SetOutputDevice(outInterface->GetDevice());
+              route->SetSource (source);
+
+              m_sendOutgoingTrace (ipHeader, packet, ifaceIndex);
+              SendRealOut (route, packet, ipHeader);
+
               return;
             }
         }
@@ -802,7 +950,69 @@ Ipv4L3Protocol::SendRealOut (Ptr<Ipv4Route> route,
   Ptr<NetDevice> outDev = route->GetOutputDevice ();
   int32_t interface = GetInterfaceForDevice (outDev);
   NS_ASSERT (interface >= 0);
+
+  Ptr<Queue> outputQueue = GetOutputQueue (outDev);
+  if (outputQueue == 0)
+    {
+      ObjectFactory factory;
+      factory.SetTypeId (m_outputQueueTid);
+      outputQueue = DynamicCast<Queue> (factory.Create());
+      SetOutputQueue (outDev, outputQueue);
+
+      outDev->SetBackPressureCallback(MakeCallback
+                                      (&Ipv4L3Protocol::BackPressureFromDevice,
+                                      this));
+    }
+
+  if (! outputQueue->Enqueue (packet))
+    {
+      NS_LOG_LOGIC ("Dropping -- outgoing interface queue rejected packet");
+      Ipv4Header ipHeader;
+      packet->RemoveHeader (ipHeader);
+      m_dropTrace (ipHeader, packet, DROP_NO_ENQUEUE,
+                   m_node->GetObject<Ipv4> (), interface);
+    }
+
+  if (outDev->IsReady())
+    {
+      PushDown (outDev);
+    }
+}
+
+void
+Ipv4L3Protocol::BackPressureFromDevice (Ptr<NetDevice> dev)
+{
+  NS_LOG_FUNCTION (this << dev);
+
+  PushDown (dev);
+}
+
+void
+Ipv4L3Protocol::PushDown (Ptr<NetDevice> outDev)
+{
+  NS_LOG_FUNCTION (this << outDev);
+
+  Ptr<Queue> outputQueue = GetOutputQueue (outDev);
+  NS_ASSERT (outputQueue != 0);
+
+  Ptr<Packet> packet = outputQueue->Dequeue();
+  if (packet == 0)
+    {
+      NS_LOG_LOGIC ("No packet in output queue to send");
+      return;
+    }
+
+  int32_t interface = GetInterfaceForDevice (outDev);
+  NS_ASSERT (interface >= 0);
   Ptr<Ipv4Interface> outInterface = GetInterface (interface);
+  Ipv4Header ipHeader;
+  packet->PeekHeader(ipHeader);
+
+  Ptr<Ipv4Route> route;
+  Socket::SocketErrno _errno;
+  NS_ASSERT (m_routingProtocol != 0);
+  route = m_routingProtocol->RouteOutput (packet, ipHeader, 0, _errno);
+
   NS_LOG_LOGIC ("Send via NetDevice ifIndex " << outDev->GetIfIndex () << " ipv4InterfaceIndex " << interface);
 
   if (!route->GetGateway ().IsEqual (Ipv4Address ("0.0.0.0")))
