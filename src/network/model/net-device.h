@@ -183,7 +183,9 @@ public:
    * multicast group.
    *
    * \warning Calling this method is invalid if IsMulticast returns not true.
-   * \see IsMulticast()
+   * \see Ipv4Address
+   * \see Address
+   * \see NetDevice::IsMulticast
    */
   virtual Address GetMulticast (Ipv4Address multicastGroup) const = 0;
 
@@ -334,6 +336,26 @@ public:
    * \return true if this interface supports a bridging mode, false otherwise.
    */
   virtual bool SupportsSendFrom (void) const = 0;
+
+  /**
+   * \brief Tell if the device is ready to send packet
+   *
+   * It returns true by default to maintain compatibility; it is a subclass duty
+   * to reimplement it with proper meaning.
+   *
+   * \return true if this interface is ready to send packets
+   */
+  virtual bool IsReady () { return true; }
+
+  typedef Callback< void, Ptr<NetDevice> > BackPressureCallback;
+
+  void SetBackPressureCallback (BackPressureCallback cb)
+  {
+    m_backPressureCallback = cb;
+  }
+
+protected:
+  BackPressureCallback m_backPressureCallback;
 
 };
 
