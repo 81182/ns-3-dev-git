@@ -211,6 +211,19 @@ public:
   */
   int64_t AssignStreams (NodeContainer c, int64_t stream);
 
+  /**
+   * \brief Set TypeId for the output queue
+   *
+   * \param outputQueueTid Tid specified
+   */
+  void SetOutputQueueTid (const std::string &outputQueueTid);
+
+  /**
+   * \brief Set TypeId for the input queue
+   *
+   * \param outputQueueTid Tid specified
+   */
+  void SetInputQueueTid (const std::string &inputQueueTid);
 private:
   /**
    * @brief Enable pcap output the indicated Ipv4 and interface pair.
@@ -346,6 +359,9 @@ private:
    * \brief IPv6 IPv6 NS and RS Jitter state (enabled/disabled) ?
    */
   bool m_ipv6NsRsJitterEnabled;
+
+  std::string m_inputQueueTid;
+  std::string m_outputQueueTid;
 };
 
 } // namespace ns3

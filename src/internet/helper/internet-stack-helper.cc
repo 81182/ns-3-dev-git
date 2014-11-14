@@ -444,6 +444,18 @@ InternetStackHelper::Install (Ptr<Node> node) const
       Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
       Ptr<Ipv4RoutingProtocol> ipv4Routing = m_routing->Create (node);
       ipv4->SetRoutingProtocol (ipv4Routing);
+
+      if (! m_inputQueueTid.empty ())
+        {
+          Ptr<Ipv4L3Protocol> ipv4L3 = node->GetObject<Ipv4L3Protocol> ();
+          ipv4L3->SetInputQueueTid(m_inputQueueTid);
+        }
+
+      if (! m_outputQueueTid.empty ())
+        {
+          Ptr<Ipv4L3Protocol> ipv4L3 = node->GetObject<Ipv4L3Protocol> ();
+          ipv4L3->SetOutputQueueTid(m_outputQueueTid);
+        }
     }
 
   if (m_ipv6Enabled)
@@ -1339,6 +1351,18 @@ InternetStackHelper::EnableAsciiIpv6Internal (
     }
 
   g_interfaceStreamMapIpv6[std::make_pair (ipv6, interface)] = stream;
+}
+
+void
+InternetStackHelper::SetOutputQueueTid (const std::string &outputQueueTid)
+{
+  m_outputQueueTid = outputQueueTid;
+}
+
+void
+InternetStackHelper::SetInputQueueTid (const std::string &inputQueueTid)
+{
+  m_inputQueueTid = inputQueueTid;
 }
 
 } // namespace ns3
