@@ -195,6 +195,7 @@ public:
   virtual void SetPromiscReceiveCallback (PromiscReceiveCallback cb);
   virtual bool SupportsSendFrom (void) const;
 
+  virtual bool IsReady (void);
 protected:
   /**
    * \brief Handler for MPI receive event
