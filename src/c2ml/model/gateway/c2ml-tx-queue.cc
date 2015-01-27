@@ -21,6 +21,7 @@
 #include "ns3/tcp-header.h"
 #include "ns3/uinteger.h"
 #include "ns3/ipv4-header.h"
+#include "../src/internet/model/tcp-option-ts.h"
 
 #include "c2ml-tx-queue.h"
 
@@ -79,13 +80,16 @@ C2MLTxQueue::TrackSent (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader,
   if (it == m_rtt.end())
     {
       Ptr<RttMeanDeviation> rtt= CreateObject<RttMeanDeviation> ();
-      rtt->SetTimestampEnabled (true);
       m_rtt.insert(RttPair (ipHeader.GetSource().Get(), rtt));
     }
 
   it = m_rtt.find(ipHeader.GetSource().Get());
 
-  it->second->SentPkt (tcpHeader, size);
+  NS_ASSERT (tcpHeader.HasOption(TcpOption::TS));
+  Ptr<TcpOptionTS> tp = DynamicCast<TcpOptionTS> (tcpHeader.GetOption(TcpOption::TS));
+
+  Time t = TcpOptionTS::ElapsedTimeFromTsValue(tp->GetEcho());
+  it->second->Measurement (t);
 }
 
 void
@@ -98,7 +102,7 @@ C2MLTxQueue::TrackRcv (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader)
       return;
     }
 
-  Time rtt = it->second->GetRttFor(tcpHeader);
+  Time rtt = it->second->GetEstimate ();
   Time oldRtt = Time::FromInteger(0, Time::S);
 
   TimeMapIterator i = m_time.find(ipHeader.GetDestination().Get());
