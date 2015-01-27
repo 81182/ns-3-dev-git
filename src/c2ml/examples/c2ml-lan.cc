@@ -296,7 +296,7 @@ main (int argc, char *argv[])
           mw->SetAttribute ("Remote", gatewayAddress);
         }
 
-      SET_DEFAULT_BOOL ("ns3::TcpSocketBase::SendInAck", true);
+      SET_DEFAULT_BOOL ("ns3::TcpSocketBase::SendInAck", false);
     }
 
   if (simulationConf.enableQueueStatistics)
