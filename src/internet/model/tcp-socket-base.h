@@ -763,6 +763,7 @@ protected:
   uint32_t m_timestampToEcho;     //!< Timestamp to echo
 
   EventId m_sendPendingDataEvent; //!< micro-delay event to send pending data
+  bool m_sendInAck;
 };
 
 } // namespace ns3
