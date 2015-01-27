@@ -71,7 +71,8 @@ C2MLGateway::GetTypeId (void)
                    MakeBooleanAccessor (&C2MLGateway::m_aqmEnabled),
                    MakeBooleanChecker ())
     .AddTraceSource ("Rx", "A packet has been received",
-                     MakeTraceSourceAccessor (&C2MLGateway::m_rxTrace))
+                     MakeTraceSourceAccessor (&C2MLGateway::m_rxTrace),
+                     "ns3::Packet::TracedCallback")
   ;
   return tid;
 }
