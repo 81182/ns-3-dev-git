@@ -76,9 +76,7 @@ TcpWestwoodMw::GetMwProtocol ()
 void
 TcpWestwoodMw::NewAck (SequenceNumber32 const& seq)
 {
-  Time rtt = m_lastRtt.Get ();
-  if (rtt.IsZero ())
-    rtt = m_rtt->GetCurrentEstimate ();
+  Time rtt = m_rtt->GetEstimate();
 
   if (m_minRtt > rtt)
     m_minRtt = rtt;
@@ -109,9 +107,7 @@ void TcpWestwoodMw::SetBandwidth (uint32_t b)
 {
   NS_LOG_FUNCTION (this << b);
 
-  Time rtt = m_lastRtt.Get ();
-  if (rtt.IsZero ())
-    rtt = m_rtt->GetCurrentEstimate ();
+  Time rtt = m_rtt->GetEstimate();
 
   uint32_t oldBw = m_availableBw;
   m_availableBw = b;
