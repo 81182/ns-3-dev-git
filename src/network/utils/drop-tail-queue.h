@@ -63,7 +63,7 @@ public:
    */
   DropTailQueue::QueueMode GetMode (void);
 
-private:
+protected:
   virtual bool DoEnqueue (Ptr<Packet> p);
   virtual Ptr<Packet> DoDequeue (void);
   virtual Ptr<const Packet> DoPeek (void) const;
