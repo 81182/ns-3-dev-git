@@ -78,7 +78,7 @@ public:
    * \return A smart Socket pointer to a TcpSocket allocated by this instance
    * of the TCP protocol
    */
-  Ptr<Socket> CreateSocket (void);
+  virtual Ptr<Socket> CreateSocket (void);
   /**
    * \brief Create a TCP socket
    * \return A smart Socket pointer to a TcpSocket allocated by this instance
@@ -88,7 +88,7 @@ public:
    *
    * \param socketTypeId the socket TypeId
    */
-  Ptr<Socket> CreateSocket (TypeId socketTypeId);
+  virtual Ptr<Socket> CreateSocket (TypeId socketTypeId);
 
   /**
    * \brief Allocate an IPv4 Endpoint
@@ -226,12 +226,13 @@ protected:
    * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
    */
   virtual void NotifyNewAggregate ();
-private:
+
+  TypeId m_socketTypeId; //!< The socket TypeId
   Ptr<Node> m_node; //!< the node this stack is associated with
+private:
   Ipv4EndPointDemux *m_endPoints; //!< A list of IPv4 end points.
   Ipv6EndPointDemux *m_endPoints6; //!< A list of IPv6 end points.
   TypeId m_rttTypeId; //!< The RTT Estimator TypeId
-  TypeId m_socketTypeId; //!< The socket TypeId
 private:
   friend class TcpSocketBase;
   void SendPacket (Ptr<Packet>, const TcpHeader &,
