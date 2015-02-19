@@ -56,6 +56,19 @@ public:
 
   void TrackRcv (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader);
 
+  /**
+   * \brief Enumeration of the modes supported in the class.
+   *
+   */
+  enum DropMode
+  {
+    DROP_HEAD,
+    DROP_TAIL
+  };
+
+  void SetMode (C2MLTxQueue::DropMode mode);
+  C2MLTxQueue::DropMode GetMode ();
+
 protected:
   // From AbstractQueue
   virtual bool DoEnqueue (Ptr<Packet> pContainer);
@@ -89,6 +102,8 @@ protected:
   ByteMap m_byte;
   TimeMap m_startTime;
   TimeMap m_startRtt;
+
+  DropMode m_mode;
 };
 
 } // namespace ns3

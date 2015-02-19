@@ -42,6 +42,12 @@ TypeId C2MLTxQueue::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::C2MLTxQueue")
     .SetParent<DropTailQueue> ()
     .AddConstructor<C2MLTxQueue> ()
+    .AddAttribute ("Mode",
+                   "Whether to use Head or Tail drop",
+                   EnumValue (DROP_HEAD),
+                   MakeEnumAccessor (&C2MLTxQueue::SetMode),
+                   MakeEnumChecker (DROP_HEAD, "DROP_HEAD",
+                                    DROP_TAIL, "DROP_TAIL"))
   ;
 
   return tid;
@@ -57,6 +63,18 @@ C2MLTxQueue::C2MLTxQueue () :
 C2MLTxQueue::~C2MLTxQueue()
 {
 
+}
+
+void
+C2MLTxQueue::SetMode(C2MLTxQueue::DropMode mode)
+{
+  m_mode = mode;
+}
+
+C2MLTxQueue::DropMode
+C2MLTxQueue::GetMode()
+{
+  return m_mode;
 }
 
 void
@@ -237,27 +255,30 @@ C2MLTxQueue::DoEnqueue (Ptr<Packet> pContainer)
     }
   else
     {
-      Ipv4Address src = header.GetSource();
-      Ipv4Header itemHeader;
-
-      for (std::list< Ptr<Packet> >::reverse_iterator it = m_queue.rbegin();
-           it != m_queue.rend (); ++it)
+      if (m_mode == DROP_TAIL)
         {
-          Ptr<Packet> item = (*it);
-          item->PeekHeader(itemHeader);
+          DropTailQueue::Drop(pContainer);
+        }
+      else
+        {
+          Ipv4Address src = header.GetSource();
+          Ipv4Header itemHeader;
 
-          if (src.IsEqual(itemHeader.GetSource()))
+          for (std::list< Ptr<Packet> >::reverse_iterator it = m_queue.rbegin();
+               it != m_queue.rend (); ++it)
             {
-              NS_LOG_DEBUG ("DROPPO p prima" << item->ToString() << " accodo " << pContainer->ToString());
-              m_queue.remove(item);
-              DropTailQueue::Drop (item);
-              return DropTailQueue::DoEnqueue(pContainer);
+              Ptr<Packet> item = (*it);
+              item->PeekHeader(itemHeader);
+
+              if (src.IsEqual(itemHeader.GetSource()))
+                {
+                  NS_LOG_DEBUG ("DROPPO p prima" << item->ToString() << " accodo " << pContainer->ToString());
+                  m_queue.remove(item);
+                  DropTailQueue::Drop (item);
+                  return DropTailQueue::DoEnqueue(pContainer);
+                }
             }
         }
-
-      //NS_LOG_DEBUG ("VA BE ACCODO");
-      //return DropTailQueue::DoEnqueue(pContainer);
-      DropTailQueue::Drop(pContainer);
       return false;
     }
 }
