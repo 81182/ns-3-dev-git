@@ -31,6 +31,12 @@ namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED (C2MLTxQueue);
 
+#define RTT_OF(src) m_startRtt.find(src.Get())->second
+#define BYTE_OF(src) m_byte.find(src.Get())->second
+#define START_OF(src) m_startTime.find(src.Get())->second
+
+#define NOW Simulator::Now()
+
 TypeId C2MLTxQueue::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::C2MLTxQueue")
@@ -75,11 +81,16 @@ void
 C2MLTxQueue::TrackSent (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader,
                         uint32_t size)
 {
-  RttMapIterator it = m_rtt.find(ipHeader.GetSource().Get());
 
+}
+
+void
+C2MLTxQueue::TrackRcv (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader)
+{
+  RttMapIterator it = m_rtt.find(ipHeader.GetDestination().Get());
   if (it == m_rtt.end())
     {
-      Ptr<RttMeanDeviation> rtt= CreateObject<RttMeanDeviation> ();
+      Ptr<RttMeanDeviation> rtt = CreateObject<RttMeanDeviation> ();
       m_rtt.insert(RttPair (ipHeader.GetSource().Get(), rtt));
     }
 
@@ -89,20 +100,13 @@ C2MLTxQueue::TrackSent (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader,
   Ptr<TcpOptionTS> tp = DynamicCast<TcpOptionTS> (tcpHeader.GetOption(TcpOption::TS));
 
   Time t = TcpOptionTS::ElapsedTimeFromTsValue(tp->GetEcho());
+  NS_ASSERT (!t.IsZero());
+
   it->second->Measurement (t);
-}
-
-void
-C2MLTxQueue::TrackRcv (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader)
-{
-  RttMapIterator it = m_rtt.find(ipHeader.GetDestination().Get());
-  if (it == m_rtt.end())
-    {
-      NS_LOG_DEBUG ("No RTT FOUND " << ipHeader << " ack=" << tcpHeader);
-      return;
-    }
-
   Time rtt = it->second->GetEstimate ();
+
+  NS_ASSERT (!rtt.IsZero());
+
   Time oldRtt = Time::FromInteger(0, Time::S);
 
   TimeMapIterator i = m_time.find(ipHeader.GetDestination().Get());
@@ -123,7 +127,7 @@ C2MLTxQueue::TrackRcv (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader)
       Simulator::Schedule(rtt, &C2MLTxQueue::ResetData, this, ipHeader.GetDestination());
 
       NS_LOG_DEBUG (Simulator::Now().GetSeconds() << " " << ipHeader.GetDestination() << " ACK; "
-                 << " rtt= " << rtt.GetSeconds());
+                 << " rtt= " << rtt.GetMilliSeconds());
     }
 }
 
@@ -140,12 +144,6 @@ C2MLTxQueue::IsIpAllowed (const Ipv4Address &ip)
 
   return false;
 }
-
-#define RTT_OF(src) m_startRtt.find(src.Get())->second
-#define BYTE_OF(src) m_byte.find(src.Get())->second
-#define START_OF(src) m_startTime.find(src.Get())->second
-
-#define NOW Simulator::Now()
 
 bool
 C2MLTxQueue::ShouldEnqueueOut (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader,
@@ -165,7 +163,7 @@ C2MLTxQueue::ShouldEnqueueOut (const Ipv4Header &ipHeader, const TcpHeader &tcpH
   else if (flags == TcpHeader::SYN)
     {
       NS_LOG_DEBUG ("Track a SYN from " << src);
-      TrackSent (ipHeader, tcpHeader, size);
+      //TrackSent (ipHeader, tcpHeader, size);
       return true;
     }
 
@@ -180,17 +178,17 @@ C2MLTxQueue::ShouldEnqueueOut (const Ipv4Header &ipHeader, const TcpHeader &tcpH
         NS_LOG_DEBUG ("Dropping src=" << src << " dest=" << dest << " seq= " << seq <<
                        " size=" << size << " ack=" << ack << " flags=" << (uint32_t) flags <<
                        " at " << Simulator::Now().GetSeconds() <<
-                       " Droppo byte=" << BYTE_OF(src) << " rtt=" << RTT_OF(src).GetSeconds());
+                       " Droppo byte=" << BYTE_OF(src) << " rtt=" << RTT_OF(src).GetMilliSeconds());
 
         return false;
       }
     BYTE_OF(src) += size;
 
-    TrackSent (ipHeader, tcpHeader, size);
-    //NS_LOG_LOGIC ("TX: Allowing src=" << src << " dest=" << dest << " seq= " << seq <<
-    //               " size=" << size << " ack=" << ack << " flags=" << (uint32_t) flags <<
-    //               " at " << Simulator::Now().GetSeconds() <<
-    //               " Byte OUT from " << src << "=" << BYTE_OF(src) << " rtt: " << RTT_OF(src).GetSeconds());
+    //TrackSent (ipHeader, tcpHeader, size);
+    NS_LOG_LOGIC ("TX: Allowing src=" << src << " dest=" << dest << " seq= " << seq <<
+                   " size=" << size << " ack=" << ack << " flags=" << (uint32_t) flags <<
+                   " at " << Simulator::Now().GetSeconds() <<
+                   " Byte OUT from " << src << "=" << BYTE_OF(src) << " rtt: " << RTT_OF(src).GetMilliSeconds());
 
     return true;
 }
@@ -208,6 +206,8 @@ void C2MLTxQueue::ResetData(const Ipv4Address &addr)
     {
       m_startRtt.find (addr.Get())->second = rtt;
     }
+
+  NS_ASSERT (!rtt.IsZero());
 
   NS_LOG_DEBUG ("RESET FOR " << addr << " at " << NOW.GetSeconds());
   Simulator::Schedule(rtt, &C2MLTxQueue::ResetData, this, addr);
@@ -231,7 +231,7 @@ C2MLTxQueue::DoEnqueue (Ptr<Packet> pContainer)
   TcpHeader tcpHeader;
   pktCopy->RemoveHeader(tcpHeader);
 
-  if (ShouldEnqueueOut (header, tcpHeader, pContainer->GetSize ()))
+  if (ShouldEnqueueOut (header, tcpHeader, pktCopy->GetSize ()))
     {
       return DropTailQueue::DoEnqueue(pContainer);
     }
