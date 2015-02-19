@@ -58,7 +58,6 @@ public:
   SimulationConfiguration ();
 
   // general
-  bool enableFlowMonitor;
   bool enablePcap;
   bool enableC2ML;
   bool enableQueueStatistics;
@@ -103,7 +102,6 @@ public:
 typedef std::map<std::string, std::ofstream* > StringToFileMap;
 typedef std::pair<Ptr<Node>, ClientConfiguration* > ClientConfigurationPair;
 
-typedef std::map<FlowId, FlowMonitor::FlowStats>::const_iterator FlowConstIterator;
 typedef NodeContainer::Iterator ClientIterator;
 
 typedef std::pair<Time, std::string> CsiEvent;

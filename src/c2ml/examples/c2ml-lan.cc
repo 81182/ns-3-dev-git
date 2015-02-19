@@ -63,7 +63,6 @@ main (int argc, char *argv[])
 
   INI_READ_BOOL (cfg, "general", "EnableC2ML",            simulationConf.enableC2ML);
   INI_READ_BOOL (cfg, "general", "EnablePCAP",            simulationConf.enablePcap);
-  INI_READ_BOOL (cfg, "general", "EnableFlowMonitor",     simulationConf.enableFlowMonitor);
   INI_READ_BOOL (cfg, "general", "EnableQueueStatistics", simulationConf.enableQueueStatistics);
   INI_READ_BOOL (cfg, "general", "EnableCwndStatistics",  simulationConf.enableCwndStatistics);
   INI_READ_BOOL (cfg, "general", "EnableSSThStatistics",  simulationConf.enableSSThStatistics);
@@ -137,7 +136,6 @@ main (int argc, char *argv[])
     {
       NS_LOG_UNCOND ("General section");
       NS_LOG_UNCOND ("\tEnableC2ML: "               << simulationConf.enableC2ML <<
-                     "\n\tEnableFlowMonitor: "      << simulationConf.enableFlowMonitor <<
                      "\n\tEnablePCAP: "             << simulationConf.enablePcap <<
                      "\n\tEnableQueueStatistics: "  << simulationConf.enableQueueStatistics <<
                      "\n\tEnableCwndStatistics: "   << simulationConf.enableCwndStatistics <<
@@ -411,18 +409,6 @@ main (int argc, char *argv[])
         }
     }
 
-  // Flow Monitor
-  Ptr<FlowMonitor> flowmon;
-  FlowMonitorHelper flowmonHelper;
-  if (simulationConf.enableFlowMonitor)
-    {
-      flowmon = flowmonHelper.InstallAll ();
-      //Simulator::Schedule(Seconds(1),&ThroughputMonitor, &flowmonHelper, flowmon);
-
-      flowmon->SetAttribute ("DelayBinWidth", DoubleValue (1.0));
-      flowmon->SetAttribute ("JitterBinWidth",DoubleValue (1.0));
-    }
-
   /*Config::SetDefault ("ns3::ConfigStore::Filename", StringValue ("output-attributes.txt"));
   Config::SetDefault ("ns3::ConfigStore::FileFormat", StringValue ("RawText"));
   Config::SetDefault ("ns3::ConfigStore::Mode", StringValue ("Save"));
@@ -434,25 +420,6 @@ main (int argc, char *argv[])
   Simulator::Stop (Seconds (simulationConf.stopTime));
   Simulator::Run ();
   NS_LOG_INFO ("Done.");
-
-  if (simulationConf.enableFlowMonitor)
-    {
-      flowmon->CheckForLostPackets ();
-
-      Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmonHelper.GetClassifier ());
-      std::map<FlowId, FlowMonitor::FlowStats> stats = flowmon->GetFlowStats ();
-      for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i)
-        {
-          Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
-          std::cout << "Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
-          std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
-          std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
-          //std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds())/1024/1024  << " Mbps\n";
-          std::cout << "  Throughput: " << i->second.rxBytes / (i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ())/1024  << " KBps\n";
-        }
-
-      flowmon->SerializeToXmlFile ("results.xml",true,true);
-    }
 
   if (simulationConf.enableDataRxStatistics)
     {

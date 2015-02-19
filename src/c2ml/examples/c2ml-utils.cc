@@ -41,7 +41,6 @@ SimulationConfiguration::SimulationConfiguration ()
   //
   //
   // general
-  enableFlowMonitor = false;
   enablePcap = false;
   enableC2ML = false;
   enableQueueStatistics = false;
