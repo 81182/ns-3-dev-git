@@ -42,7 +42,7 @@ TypeId C2MLTxQueue::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::C2MLTxQueue")
     .SetParent<DropTailQueue> ()
     .AddConstructor<C2MLTxQueue> ()
-    .AddAttribute ("Mode",
+    .AddAttribute ("DropMode",
                    "Whether to use Head or Tail drop",
                    EnumValue (DROP_HEAD),
                    MakeEnumAccessor (&C2MLTxQueue::SetMode),
@@ -264,8 +264,8 @@ C2MLTxQueue::DoEnqueue (Ptr<Packet> pContainer)
           Ipv4Address src = header.GetSource();
           Ipv4Header itemHeader;
 
-          for (std::list< Ptr<Packet> >::reverse_iterator it = m_queue.rbegin();
-               it != m_queue.rend (); ++it)
+          for (std::list< Ptr<Packet> >::reverse_iterator it = m_packets.rbegin();
+               it != m_packets.rend (); ++it)
             {
               Ptr<Packet> item = (*it);
               item->PeekHeader(itemHeader);
@@ -273,11 +273,13 @@ C2MLTxQueue::DoEnqueue (Ptr<Packet> pContainer)
               if (src.IsEqual(itemHeader.GetSource()))
                 {
                   NS_LOG_DEBUG ("DROPPO p prima" << item->ToString() << " accodo " << pContainer->ToString());
-                  m_queue.remove(item);
+                  m_packets.remove(item);
                   DropTailQueue::Drop (item);
                   return DropTailQueue::DoEnqueue(pContainer);
                 }
             }
+
+          DropTailQueue::Drop (pContainer);
         }
       return false;
     }

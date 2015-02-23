@@ -96,7 +96,6 @@ protected:
   uint64_t m_goodBw;
 
   std::list<Ipv4Address> m_allowedIp;
-  std::list< Ptr<Packet> > m_queue;
   RttMap m_rtt;
   TimeMap m_time;
   ByteMap m_byte;
