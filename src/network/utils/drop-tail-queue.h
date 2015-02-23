@@ -68,7 +68,7 @@ protected:
   virtual Ptr<Packet> DoDequeue (void);
   virtual Ptr<const Packet> DoPeek (void) const;
 
-  std::queue<Ptr<Packet> > m_packets; //!< the packets in the queue
+  std::list<Ptr<Packet> > m_packets; //!< the packets in the queue
   uint32_t m_maxPackets;              //!< max packets in the queue
   uint32_t m_maxBytes;                //!< max bytes in the queue
   uint32_t m_bytesInQueue;            //!< actual bytes in the queue

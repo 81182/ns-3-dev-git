@@ -101,7 +101,7 @@ DropTailQueue::DoEnqueue (Ptr<Packet> p)
     }
 
   m_bytesInQueue += p->GetSize ();
-  m_packets.push (p);
+  m_packets.push_back (p);
 
   NS_LOG_LOGIC ("Number packets " << m_packets.size ());
   NS_LOG_LOGIC ("Number bytes " << m_bytesInQueue);
@@ -121,7 +121,7 @@ DropTailQueue::DoDequeue (void)
     }
 
   Ptr<Packet> p = m_packets.front ();
-  m_packets.pop ();
+  m_packets.pop_front ();
   m_bytesInQueue -= p->GetSize ();
 
   NS_LOG_LOGIC ("Popped " << p);
