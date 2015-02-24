@@ -261,6 +261,7 @@ C2MLTxQueue::DoEnqueue (Ptr<Packet> pContainer)
         }
       else
         {
+          NS_LOG_DEBUG ("Drop Head, size=" << m_packets.size () << " packet");
           Ipv4Address src = header.GetSource();
           Ipv4Header itemHeader;
 
@@ -274,7 +275,12 @@ C2MLTxQueue::DoEnqueue (Ptr<Packet> pContainer)
                 {
                   NS_LOG_DEBUG ("DROPPO p prima" << item->ToString() << " accodo " << pContainer->ToString());
                   m_packets.remove(item);
+                  m_traceDequeue (item);
                   DropTailQueue::Drop (item);
+                  m_bytesInQueue -= item->GetSize ();
+                  m_nBytes -= item->GetSize ();
+                  m_nPackets--;
+                  NS_ASSERT (m_packets.size() == m_nPackets);
                   return DropTailQueue::DoEnqueue(pContainer);
                 }
             }
