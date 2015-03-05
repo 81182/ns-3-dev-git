@@ -166,6 +166,12 @@ private:
    */
   uint16_t m_x2LinkMtu;
 
+  bool        m_enablePcapOverX2;
+  std::string m_x2LinkPcapPrefix;
+
+  bool        m_enablePcapOverS1U;
+  std::string m_s1uLinkPcapPrefix;
+
 };
 
 
