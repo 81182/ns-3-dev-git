@@ -631,6 +631,7 @@ Ipv4L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p,
     }
 
 
+  Ptr<Packet> oldPkt = packet;
   inputQueue->Enqueue(packet);
 
   packet = inputQueue->Dequeue();
@@ -639,8 +640,8 @@ Ipv4L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p,
     {
       NS_LOG_LOGIC ("No packet dequeued, returning");
       Ipv4Header ipHeader;
-      packet->RemoveHeader (ipHeader);
-      m_dropTrace (ipHeader, packet, DROP_NO_ENQUEUE,
+      oldPkt->RemoveHeader (ipHeader);
+      m_dropTrace (ipHeader, oldPkt, DROP_NO_ENQUEUE,
                    m_node->GetObject<Ipv4> (), interface);
       return;
     }
