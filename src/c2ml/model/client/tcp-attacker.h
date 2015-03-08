@@ -21,7 +21,7 @@ public:
   void SetBandwidth (uint32_t b)
   {
     (void) b;
-    T::SetBandwidth (2500000);
+    T::SetBandwidth (25000000);
   }
 
 protected:
