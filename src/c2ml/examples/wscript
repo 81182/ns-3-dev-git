@@ -4,6 +4,11 @@ def build(bld):
     obj = bld.create_ns3_program('c2ml-lan', ['c2ml', 'internet', 'point-to-point',
                                              'applications', 'flow-monitor'])
     obj.source = ['c2ml-lan.cc', 'INIReader.cc', 'ini.c', 'c2ml-utils.cc']
+    obj = bld.create_ns3_program('ppdr-tc-lan', ['c2ml', 'internet', 'point-to-point',
+                                             'applications', 'flow-monitor', 'lte',
+                                             'mobility', 'netanim'])
+    obj.source = ['ppdr-tc-lan.cc', 'ppdr-tc-statistics.cc', 'INIReader.cc',
+                  'ini.c', 'ppdr-tc-utils.cc']
 
     obj = bld.create_ns3_program('noordwijk-transfer', ['c2ml', 'internet', 'point-to-point',
                                                         'applications', 'flow-monitor'])
