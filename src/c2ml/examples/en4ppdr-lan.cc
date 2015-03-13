@@ -52,6 +52,8 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/tcp-cubic.h"
+#include "ns3/propagation-module.h"
+
 //#include "ns3/gtk-config-store.h"
 
 using namespace ns3;
@@ -65,24 +67,80 @@ enum {
     TCP_NOORDWIJK = 3
 };
 
+void
+PrintGnuplottableUeListToFile (std::string filename)
+{
+  std::ofstream outFile;
+  outFile.open (filename.c_str (), std::ios_base::out | std::ios_base::trunc);
+  if (!outFile.is_open ())
+    {
+      NS_LOG_ERROR ("Can't open file " << filename);
+      return;
+    }
+  for (NodeList::Iterator it = NodeList::Begin (); it != NodeList::End (); ++it)
+    {
+      Ptr<Node> node = *it;
+      int nDevs = node->GetNDevices ();
+      for (int j = 0; j < nDevs; j++)
+        {
+          Ptr<LteUeNetDevice> uedev = node->GetDevice (j)->GetObject <LteUeNetDevice> ();
+          if (uedev)
+            {
+              Vector pos = node->GetObject<MobilityModel> ()->GetPosition ();
+              outFile << "set label \"" << uedev->GetImsi ()
+                      << "\" at "<< pos.x << "," << pos.y << " left font \"Helvetica,4\" textcolor rgb \"grey\" front point pt 1 ps 0.3 lc rgb \"grey\" offset 0,0"
+                      << std::endl;
+            }
+        }
+    }
+}
+
+void
+PrintGnuplottableEnbListToFile (std::string filename)
+{
+  std::ofstream outFile;
+  outFile.open (filename.c_str (), std::ios_base::out | std::ios_base::trunc);
+  if (!outFile.is_open ())
+    {
+      NS_LOG_ERROR ("Can't open file " << filename);
+      return;
+    }
+  for (NodeList::Iterator it = NodeList::Begin (); it != NodeList::End (); ++it)
+    {
+      Ptr<Node> node = *it;
+      int nDevs = node->GetNDevices ();
+      for (int j = 0; j < nDevs; j++)
+        {
+          Ptr<LteEnbNetDevice> enbdev = node->GetDevice (j)->GetObject <LteEnbNetDevice> ();
+          if (enbdev)
+            {
+              Vector pos = node->GetObject<MobilityModel> ()->GetPosition ();
+              outFile << "set label \"" << enbdev->GetCellId ()
+                      << "\" at "<< pos.x << "," << pos.y
+                      << " left font \"Helvetica,4\" textcolor rgb \"white\" front  point pt 2 ps 0.3 lc rgb \"white\" offset 0,0"
+                      << std::endl;
+            }
+        }
+    }
+}
 
 int main (int argc, char *argv[])
 {	
   CommandLine cmd;
-  std::string dr = "5Mbps";
-  std::string delay = "300ms";
+  std::string dr = "100Mbps";
+  std::string delay = "15ms";
   std::string prefix = "en4ppdr";
   uint32_t segmentSize = 1000;
-  uint32_t delAckCount = 2;
-  uint32_t ssthres = 20000;
-  uint32_t initialCwnd = 4;
+  uint32_t delAckCount = 1;
+  uint32_t ssthres = 200000000;
+  uint32_t initialCwnd = 10;
   uint32_t lteNodes = 2;
-  uint32_t lteVoiceNodes = 16;
-  double stopTime = 63.0;
+  uint32_t lteVoiceNodes = 0;
+  double stopTime = 30.0;
 
-  bool enableVoice = true;
+  bool enableVoice = false;
 
-  int TcpType = TCP_NOORDWIJK;
+  int TcpType = TCP_NEWRENO;
 
   cmd.AddValue ("DataRate", "Data rate da usare sul p2p", dr);
   cmd.AddValue ("TCPType", "Type of the underlying TCP (0=NewReno, 1=Cubic, 2=HighSpeed, 3=Noordwijk", TcpType);
@@ -103,9 +161,6 @@ int main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (delAckCount));
   Config::SetDefault ("ns3::TcpSocket::InitialSlowStartThreshold", UintegerValue (ssthres));
   Config::SetDefault ("ns3::TcpSocket::InitialCwnd", UintegerValue (initialCwnd));
-
-  Config::SetDefault ("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(25));
-  Config::SetDefault ("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(25));
 
   TypeId tid;
   switch (TcpType)
@@ -143,6 +198,20 @@ int main (int argc, char *argv[])
 
   /* In questo modo l'helper LTE farà partire le appropriate configurazioni EPC quando certe cose come i nodi o i radio bearer vengono creati */
   lteHelper->SetEpcHelper (epcHelper);
+  lteHelper->SetEnbAntennaModelType("ns3::CosineAntennaModel");
+  lteHelper->SetEnbAntennaModelAttribute("MaxGain", DoubleValue (18.0));
+  lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(100));
+  lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(100));
+  lteHelper->SetEnbDeviceAttribute("DlEarfcn", UintegerValue(1575));
+  lteHelper->SetEnbDeviceAttribute("UlEarfcn", UintegerValue(19575));
+  lteHelper->SetUeAntennaModelType("ns3::IsotropicAntennaModel");
+  lteHelper->SetUeDeviceAttribute("DlEarfcn", UintegerValue(1575));
+  lteHelper->SetPathlossModelType("ns3::OkumuraHataPropagationLossModel");
+  lteHelper->SetPathlossModelAttribute("Environment", EnumValue (UrbanEnvironment));
+  lteHelper->SetPathlossModelAttribute("CitySize", EnumValue (SmallCity));
+  lteHelper->SetSchedulerType("ns3::PfFfMacScheduler");
+  //Config::SetDefault ("ns3::LteEnbRrc::DefaultTransmissionMode", UintegerValue (5));
+  //Config::SetDefault ("ns3::LteUePhy::TxMode5Gain", DoubleValue (4.2));
 
   /* Il nodo pgw è già stato creato da EpcHelper, qui vado a prendermi un riferimento */
   Ptr<Node> pgw = epcHelper->GetPgwNode ();
@@ -159,52 +228,38 @@ int main (int argc, char *argv[])
       voiceNodesContainer.Create (lteVoiceNodes);
     }
 
-  /* Uso l'Helper di Mobility per piazzare facilmente i due nodi in certe posizioni fisse */
   MobilityHelper mobility;
-  //Vector3D uePosition (0.0,0.0,0.0);
-  //Vector3D enbPosition (10.0,10.0,0.0);
+  {
+    Ptr<ListPositionAllocator> enbPos = CreateObject<ListPositionAllocator> ();
+    enbPos->Add(Vector (0.0, 0.0, 35.0));
+    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+    mobility.SetPositionAllocator (enbPos);
+    mobility.Install (enbNodes);
+  }
 
-  //Config::Set ("/NodeList/*/$ns3::MobilityModel/$ns3::RandomWalk2dMobilityModel/Bounds",
-  //             RectangleValue (Rectangle(0.0,1000.0,0.0,1000.0)));
+  {
+    Ptr<ListPositionAllocator> uePos = CreateObject<ListPositionAllocator> ();
+    for (int i=0; i<=25; i++)
+      {
 
-  /*Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
-  x->SetAttribute ("Min", DoubleValue (1.0));
-  x->SetAttribute ("Max", DoubleValue (4.0));*/
-  //Config::Set ("/NodeList/*/$ns3::MobilityModel/$ns3::RandomWalk2dMobilityModel/Speed",
-  //             PointerValue (x));
+            uePos->Add(Vector (10.0, 0.0, 1.5));
 
-  /* Decido il Mobility Model e lo installo sui nodi */
-  //mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel");
-  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-  //mobility.SetPositionAllocator("ns3::ConstantPositionMobilityModel", "Position", enbPosition);
-  mobility.Install (enbNodes);
-  //BuildingsHelper::Install (enbNodes);
-  //mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-  mobility.Install (ueNodes);
+
+      }
+    mobility.SetPositionAllocator(uePos);
+    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+    mobility.Install (ueNodes);
+  }
+
   if (enableVoice)
     {
       mobility.Install (voiceNodesContainer);
     }
-  //BuildingsHelper::Install (ueNodes);
-
-  /* Una volta installato sui nodi il Mobility Model a posizione costante vado a prendermi il riferimento del modello di ciascun nodo */
-  //Ptr<MobilityModel> enbMobModel = enbNodes.Get(0)->GetObject<MobilityModel> ();
-  //Ptr<MobilityModel> ueMobModel = ueNodes.Get(0)->GetObject<MobilityModel> ();
-
-  /* Setto la posizione di ciascun nodo attraverso il metodo del Mobility Model */
-  //enbMobModel->SetPosition(enbPosition);
-  //ueMobModel->SetPosition(uePosition);
-
-  /* Mi stampo le posizioni dei nodi (fare primahost da console export 'NS_LOG=En4PPDRLan=level_debug|prefix_func' altrimenti non stampa) */
-  //NS_LOG_DEBUG("Posizione ue -> " << ueMobModel->GetPosition());
-  //NS_LOG_DEBUG("Posizione enb -> " << enbMobModel->GetPosition() << "\n");
 
   /* Creo i NetDevice in modo standard (scheduler PF) */
   NetDeviceContainer enbDevices;
   NetDeviceContainer ueDevices;
   NetDeviceContainer voiceDevices;
-  // Default scheduler is PF, uncomment to use RR
-  //lteHelper->SetSchedulerType ("ns3::RrFfMacScheduler");
 
   /* Li installo sui nodi */
   enbDevices = lteHelper->InstallEnbDevice (enbNodes);
@@ -213,6 +268,34 @@ int main (int argc, char *argv[])
     {
       voiceDevices = lteHelper->InstallUeDevice (voiceNodesContainer);
     }
+
+
+  for (NetDeviceContainer::Iterator it = enbDevices.Begin(); it != enbDevices.End(); ++it)
+    {
+      Ptr<LteEnbNetDevice> dev = DynamicCast<LteEnbNetDevice> (*it);
+      dev->GetPhy()->SetTxPower(40.0);
+      dev->GetRrc()->SetSrsPeriodicity(80);
+    }
+
+  for (NetDeviceContainer::Iterator it = ueDevices.Begin(); it != ueDevices.End(); ++it)
+    {
+      Ptr<LteUeNetDevice> dev = DynamicCast<LteUeNetDevice> (*it);
+      dev->GetPhy()->SetTxPower(23.0);
+    }
+
+  /*
+  Ptr<RadioEnvironmentMapHelper> remHelper = CreateObject<RadioEnvironmentMapHelper> ();
+  PrintGnuplottableEnbListToFile ("enbs.txt");
+  PrintGnuplottableUeListToFile ("ues.txt");
+  remHelper->SetAttribute ("ChannelPath", StringValue ("/ChannelList/0"));
+  remHelper->SetAttribute ("OutputFile", StringValue ("rem.out"));
+  remHelper->SetAttribute ("XMin", DoubleValue (-1500.0));
+  remHelper->SetAttribute ("XMax", DoubleValue (1500.0));
+  remHelper->SetAttribute ("YMin", DoubleValue (-1500.0));
+  remHelper->SetAttribute ("YMax", DoubleValue (1500.0));
+  remHelper->SetAttribute ("Earfcn", UintegerValue (1575));
+  remHelper->SetAttribute ("Z", DoubleValue (1.5));
+  remHelper->Install ();*/
 
   //lteHelper->EnableTraces ();
 
@@ -230,6 +313,10 @@ int main (int argc, char *argv[])
   p2ph.SetChannelAttribute ("Delay", StringValue (delay));
 
   NetDeviceContainer internetDevices = p2ph.Install (pgw, remoteHostContainer.Get(0));
+
+  //Ptr<RateErrorModel> em = CreateObject<RateErrorModel> ();
+  //em->SetAttribute ("ErrorRate", DoubleValue (0.001));
+  //internetDevices.Get (1)->SetAttribute ("ReceiveErrorModel", PointerValue (em));
 
   p2ph.EnablePcapAll (prefix, true);
 
