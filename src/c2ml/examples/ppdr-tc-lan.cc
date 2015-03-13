@@ -1291,10 +1291,13 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("Run Simulation.");
   Simulator::Stop (Seconds (general.StopTime));
 
-  AnimationInterface anim ("animation.xml");
+  if (statistics.EnableNetAnim)
+    {
+      AnimationInterface anim ("animation.xml");
 
-  anim.EnableIpv4RouteTracking("animation-routing.xml", Time(0), Seconds (general.StopTime),
+      anim.EnableIpv4RouteTracking("animation-routing.xml", Time(0), Seconds (general.StopTime),
                                NodeContainer(lanClients, gateways, remotes, gwToRemote));
+    }
 
   Simulator::Run ();
   Simulator::Destroy();

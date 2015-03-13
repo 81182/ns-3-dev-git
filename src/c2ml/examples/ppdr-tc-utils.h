@@ -373,6 +373,7 @@ public:
   bool EnableDelay;
   bool EnableJitter;
   bool EnableThroughput;
+  bool EnableNetAnim;
 
   double ThroughputSamplingTime;
 };

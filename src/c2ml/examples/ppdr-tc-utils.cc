@@ -441,6 +441,7 @@ StatisticsSection::StatisticsSection ()
   DECLARE_KEY ("bool", "EnableDelay", "", &EnableDelay, true);
   DECLARE_KEY ("bool", "EnableJitter", "", &EnableJitter, true);
   DECLARE_KEY ("bool", "EnableThroughput", "", &EnableThroughput, true);
+  DECLARE_KEY ("bool", "EnableNetAnim", "", &EnableNetAnim, false);
   DECLARE_KEY ("double", "ThroughputSamplingTime", "", &ThroughputSamplingTime, 1.0);
 }
 
