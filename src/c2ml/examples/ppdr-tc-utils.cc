@@ -284,9 +284,9 @@ NodeSection::NodeSection (const std::string &name)
   m_name = name;
 
   DECLARE_KEY ("string", "MobilityModel", "", &MobilityModel,
-               "ns3::ConstantPositionMobilityModel")
+               "ns3::ConstantPositionMobilityModel");
   DECLARE_KEY ("string", "Position", "", &Position,
-               "0.0,0.0,1.5")
+               "0.0,0.0,1.5");
   DECLARE_KEY ("double", "TxPower",    "", &TxPower,    23.0);
 }
 
@@ -298,7 +298,7 @@ AppSection::AppSection (const std::string &name)
   DECLARE_KEY ("double", "StopTime",     "", &StopTime,     60.0);
   DECLARE_KEY ("string", "ConnectedTo", "", &ConnectedTo, "remote0");
   DECLARE_KEY ("string", "InstalledOn", "", &InstalledOn, "remote0");
-  DECLARE_KEY ("string", "AppType", "", &AppType, "BulkSend");
+  DECLARE_KEY ("string", "AppType", "", &AppType, "PacketSink");
   DECLARE_KEY ("uint32", "Port", "", &Port, 5000);
   DECLARE_KEY ("string", "Protocol", "", &Protocol, "TCP");
   DECLARE_KEY ("uint32", "InitialCwnd", "", &InitialCwnd, 10);
@@ -314,6 +314,8 @@ BulkSendSection::BulkSendSection (const std::string &name) : AppSection (name)
 {
   DECLARE_KEY ("uint32", "MaxBytes", "", &MaxBytes, 0);
   DECLARE_KEY ("uint32", "SendSize", "", &SendSize, 500);
+
+  AppType = "BulkSend";
 }
 
 OnOffSection::OnOffSection (const std::string &name) : BulkSendSection (name)
@@ -321,6 +323,8 @@ OnOffSection::OnOffSection (const std::string &name) : BulkSendSection (name)
   DECLARE_KEY ("string", "DataRate", "", &DataRate, "500kb/s");
   DECLARE_KEY ("string", "OnTime", "", &OnTime, "ns3::ConstantRandomVariable[Constant=1.0]");
   DECLARE_KEY ("string", "OffTime", "", &OffTime, "ns3::ConstantRandomVariable[Constant=1.0]");
+
+  AppType = "OnOff";
 }
 
 ClientSection::ClientSection (const std::string &name) : NodeSection (name)
