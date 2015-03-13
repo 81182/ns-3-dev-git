@@ -331,13 +331,6 @@ ClientSection::ClientSection (const std::string &name) : NodeSection (name)
   DECLARE_KEY ("string", "CsiVariation", "", &CsiVariation, "none");
 }
 
-void
-ClientSection::Print ()
-{
-  NS_LOG_UNCOND ("Node " << GetName () << " section:");
-  Section::Print ();
-}
-
 RemoteSection::RemoteSection (const std::string &name) : NodeSection (name)
 {
 }
@@ -583,4 +576,242 @@ PrintGnuplottableEnbListToFile (std::string filename)
         }
     }
 }
-} // namespace ns3
+
+void
+PrintDayToDay ()
+{
+  GeneralSection general;
+
+  general.Prefix = "ppdr-tc-d2d-a-0";
+  general.RemoteN = 9;
+  general.StopTime = 60;
+  general.PrintExample();
+
+  LanSection lan;
+
+  lan.ClientN = 26;
+  lan.EnablePcapUserNetwork = false;
+  lan.GatewayN = 1;
+  std::string NPerG;
+  {
+    std::stringstream names;
+    names << "[gateway0:";
+    for (uint32_t i = 0; i<24; ++i)
+      {
+        names << "client" << i <<",";
+      }
+    names << "client25]";
+    NPerG = names.str();
+  }
+  lan.NPerG = NPerG;
+  lan.Type = "lte";
+  lan.PrintExample();
+
+  BackhaulSection backhaul;
+
+  backhaul.PrintExample();
+
+  LteSection lte;
+
+  lte.PrintExample();
+
+  StatisticsSection statistics;
+
+  statistics.PrintExample();
+
+  Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
+  x->SetAttribute("Min", DoubleValue (95.0));
+  x->SetAttribute("Max", DoubleValue (105.0));
+
+  for (uint32_t i=0; i<26; ++i)
+    {
+      std::stringstream nodename, position;
+      nodename << "client" << i;
+
+      ClientSection client (nodename.str());
+
+      position << x->GetValue() << ",0,1.5";
+      client.Position = position.str();
+
+      client.PrintExample();
+    }
+
+  GatewaySection gw ("gateway0");
+  gw.TxPower = 80;
+  gw.Position = "[0.0,0.0,35.0]";
+  gw.PrintExample();
+
+  for (uint32_t i=0; i<9; ++i)
+    {
+      std::stringstream nodename;
+      nodename << "remote" << i;
+      RemoteSection remote (nodename.str());
+
+      remote.Position = "[1000.0,1000.0,25.0]";
+      remote.PrintExample();
+    }
+
+  // Fire services: 5 udp sink, 5 udp onoff, 1 tcp sink, 1 tcp bulk
+  {
+    AppSection udp1("app0"), udp2("app1"), udp3("app2"), udp4("app3"), udp5("app4");
+    AppSection tcp1("app5");
+
+    OnOffSection onoff1("app6"), onoff2("app7"), onoff3("app8"), onoff4("app9"), onoff5("app10");
+    BulkSendSection bulk1("app11");
+
+    // Port 443 for udp onoff
+    udp1.Port = udp2.Port = udp3.Port = udp4.Port = udp5.Port =
+        onoff1.Port = onoff2.Port = onoff3.Port = onoff4.Port = onoff5.Port = 443;
+
+    // protocol udp for udp onoff (really?)
+    udp1.Protocol = udp2.Protocol = udp3.Protocol = udp4.Protocol = udp5.Protocol =
+        onoff1.Protocol = onoff2.Protocol = onoff3.Protocol = onoff4.Protocol =
+        onoff5.Protocol = "UDP";
+
+    // port and protocol for TCP..
+    tcp1.Port = bulk1.Port = 21;
+    tcp1.Protocol = bulk1.Protocol = "TCP";
+
+    // data rate for udp onoff
+    onoff1.DataRate = onoff2.DataRate = onoff3.DataRate = onoff4.DataRate =
+        onoff5.DataRate = "20kb/s";
+
+    // CONNECT!
+
+    // sink before all
+    udp1.ConnectedTo = "any";
+    udp1.InstalledOn = "remote1";
+    udp1.PrintExample();
+
+    udp2.ConnectedTo = "any";
+    udp2.InstalledOn = "client1";
+    udp2.PrintExample();
+
+    udp3.ConnectedTo = "any";
+    udp3.InstalledOn = "client2";
+    udp3.PrintExample();
+
+    udp4.ConnectedTo = "any";
+    udp4.InstalledOn = "client3";
+    udp4.PrintExample();
+
+    udp5.ConnectedTo = "any";
+    udp5.InstalledOn = "remote2";
+    udp5.PrintExample();
+
+    // onoff
+    onoff1.ConnectedTo = "client1";
+    onoff1.InstalledOn = "remote0";
+    onoff1.PrintExample();
+
+    onoff2.ConnectedTo = "remote1";
+    onoff2.InstalledOn = "client4";
+    onoff2.PrintExample();
+
+    onoff3.ConnectedTo = "remote2";
+    onoff3.InstalledOn = "client5";
+    onoff3.PrintExample();
+
+    onoff4.ConnectedTo = "client2";
+    onoff4.InstalledOn = "remote1";
+    onoff4.PrintExample();
+
+    onoff5.ConnectedTo = "client3";
+    onoff5.InstalledOn = "remote2";
+    onoff5.PrintExample();
+
+    // tcp
+    tcp1.InstalledOn = "remote0";
+    tcp1.ConnectedTo = "any";
+    tcp1.PrintExample();
+
+    bulk1.InstalledOn = "client0";
+    bulk1.ConnectedTo = "remote0";
+    bulk1.PrintExample();
+  }
+
+  // EMS: 4 udp sink, 3 udp onoff, 2 tcp sink, 4 tcp bulk
+  {
+    AppSection udp1("app12"), udp2("app13"), udp3("app14"), udp4("app15");
+    AppSection tcp1("app16"), tcp2("app17");
+
+    OnOffSection onoff1("app18"), onoff2("app19"), onoff3("app20"), onoff4("app25"), onoff5("app26");
+    BulkSendSection bulk1("app21"), bulk2("app22"), bulk3("app23"), bulk4("app24");
+
+    // Port for udp
+    udp1.Port = udp2.Port = udp3.Port = udp4.Port = onoff1.Port = onoff2.Port =
+        onoff3.Port = 443;
+    tcp1.Port = tcp2.Port = bulk1.Port = bulk2.Port = bulk3.Port = bulk4.Port = 21;
+
+    // protocol
+    udp1.Protocol = udp2.Protocol = udp3.Protocol = udp4.Protocol =
+        onoff1.Protocol = onoff2.Protocol = onoff3.Protocol = "UDP";
+    tcp1.Protocol = tcp2.Protocol = bulk1.Protocol = bulk2.Protocol =
+        bulk3.Protocol = bulk4.Protocol = "TCP";
+
+    // data rate for udp onoff
+    onoff1.DataRate = onoff2.DataRate = onoff3.DataRate = onoff4.DataRate =
+        onoff5.DataRate = "20kb/s";
+
+    // CONNECT!
+
+    udp1.ConnectedTo = udp2.ConnectedTo = udp3.ConnectedTo = udp4.ConnectedTo = "any";
+
+    udp1.InstalledOn = "client10";
+    udp1.PrintExample();
+    udp2.InstalledOn = "client11";
+    udp2.PrintExample();
+    udp3.InstalledOn = "client12";
+    udp3.PrintExample();
+    udp4.InstalledOn = "remote3";
+    udp4.PrintExample();
+
+    onoff1.InstalledOn = "client6";
+    onoff1.ConnectedTo = "remote3";
+    onoff1.PrintExample();
+
+    onoff2.InstalledOn = "client13";
+    onoff2.ConnectedTo = "remote3";
+    onoff2.PrintExample();
+
+    onoff3.InstalledOn = "remote4";
+    onoff3.ConnectedTo = "client12";
+    onoff3.PrintExample();
+
+    onoff4.InstalledOn = "remote4";
+    onoff4.ConnectedTo = "client11";
+    onoff4.PrintExample();
+
+    onoff5.InstalledOn = "remote4";
+    onoff5.ConnectedTo = "client10";
+    onoff5.PrintExample();
+
+    // tcp
+
+    tcp1.ConnectedTo = tcp2.ConnectedTo = "any";
+    tcp1.InstalledOn = "remote5";
+    tcp1.PrintExample();
+
+    tcp2.InstalledOn = "client9";
+    tcp2.PrintExample();
+
+    bulk1.InstalledOn = "client7";
+    bulk1.ConnectedTo = "remote5";
+    bulk1.PrintExample();
+
+    bulk2.InstalledOn = "client8";
+    bulk2.ConnectedTo = "remote5";
+    bulk2.PrintExample();
+
+    bulk3.InstalledOn = "remote3";
+    bulk3.ConnectedTo = "client9";
+    bulk3.PrintExample();
+
+    bulk4.InstalledOn = "remote4";
+    bulk4.ConnectedTo = "client9";
+    bulk4.PrintExample();
+  }
+
+}
+
+} // namespace ppdrtc

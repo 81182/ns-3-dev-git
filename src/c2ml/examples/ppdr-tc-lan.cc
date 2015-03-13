@@ -225,7 +225,7 @@ InstallMobilityOnContainer (NodeContainer &container,
 
     if (verbose)
       {
-        NS_LOG_UNCOND ("Installed Mobility on node" << Names::FindName(node) <<
+        NS_LOG_UNCOND ("Installed Mobility on node " << Names::FindName(node) <<
                        " type " << conf->MobilityModel << " position " <<
                        conf->Position);
       }
@@ -374,7 +374,7 @@ CreateLteLAN (NodeContainer &gateways, NodeContainer &clients,
     for (std::list<std::string>::iterator it2 = lanNodes.begin (); it2 != lanNodes.end (); ++it2)
       {
         Ptr<Node> client = Names::Find<Node> (*it2);
-        NS_ASSERT (client != 0);
+        NS_ASSERT_MSG (client != 0, "client " << (*it2) << " do not exists");
 
         Ptr<NetDevice> ueDev = Names::Find<NetDevice> (Names::FindName(client)+"/dev");
         NS_ASSERT (ueDev != 0);
@@ -1125,10 +1125,13 @@ main (int argc, char *argv[])
   CommandLine   cmd;
   std::string   configFilePath;
   bool          printExample = false;
+  bool          printDayToDay = false;
 
   cmd.AddValue ("ConfigurationFile", "Configuration file path", configFilePath);
   cmd.AddValue ("PrintExample", "Print an example configuration file and exit",
                 printExample);
+  cmd.AddValue ("PrintDayToDay", "Print an example configuration for d2d and exit",
+                printDayToDay);
 
   cmd.Parse    (argc, argv);
 
@@ -1141,7 +1144,7 @@ main (int argc, char *argv[])
   outputConfig.ConfigureAttributes ();
   */
 
-  if (!printExample && configFilePath.empty ())
+  if (!printExample && !printDayToDay && configFilePath.empty ())
     {
       NS_FATAL_ERROR ("No configuration file. Running dummy simulation.. Done.");
     }
@@ -1156,6 +1159,11 @@ main (int argc, char *argv[])
   if (printExample)
     {
       return BuildAndPrintExample();
+    }
+  else if (printDayToDay)
+    {
+      PrintDayToDay();
+      return 0;
     }
 
   general.Fill (cfg);
