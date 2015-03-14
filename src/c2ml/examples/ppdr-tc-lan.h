@@ -92,7 +92,7 @@
   * nodes. In the following subsection we will explain how to configure
   * each subsection and how these will interact.
   *
-  * \subsection BlocksDescription Block Description
+  * \subsection BlocksDescription Network Blocks Description
   *
   * The first section to consider when configuring the network is the General
   * one. Details about the section and its settings can be found in class
@@ -136,7 +136,23 @@
   * represent the remote hosts) and finally a ppdrtc::StatisticsSection can be
   * written, in order to specify the desidered output data from the simulation.
   *
-  * \section Configuration Configuration File
+  * \subsection Applications Applications on the PPDR network
+  *
+  * As you can imagine, the needs in term of applications are very different
+  * from user to user. In order to let you simulate each different needs,
+  * this program provides three main way to configure an exchange of data
+  * between nodes.
+  *
+  * As a general remark, this exchange is made between two nodes, where on
+  * each one is installed an application. One behave as a sink, the other as a
+  * sender. So, the first basic application is a ppdrtc::AppSection. Then, you
+  * can have an active bulk sender (continuosly sends data, ppdrtc::BulkSendSection)
+  * or an application which follows an On/Off pattern (stay on and transmit, then
+  * switch to off and stops transmitting, then go on, then off..) which is
+  * ppdrtc::OnOffSection. The basic information about the application is where
+  * it is installed on and where it needs to connect to.
+  *
+  * \section Configuration Start using PPDR-TC Simulator
   *
   * Here it is an example configuration file:
   *
