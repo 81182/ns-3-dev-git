@@ -33,10 +33,12 @@
 #include "ns3/mobility-module.h"
 #include "ns3/propagation-module.h"
 #include "ns3/netanim-module.h"
+#include "ns3/antenna-model.h"
 
 #include "INIReader.h"
 #include "ppdr-tc-utils.h"
 #include "ppdr-tc-statistics.h"
+#include "ppdr-tc-scenarios.h"
 
 using namespace ns3;
 using namespace ppdrtc;
@@ -324,8 +326,12 @@ CreateLteLAN (NodeContainer &gateways, NodeContainer &clients,
       GatewaySection *conf = reinterpret_cast<GatewaySection*> (configurationMap.at (node));
       NS_ASSERT (conf != 0);
 
-      dev->GetPhy ()->SetTxPower (conf->TxPower);
-      dev->GetRrc ()->SetSrsPeriodicity (conf->EnbSrsPeriodicity);
+      dev->GetPhy()->SetTxPower (conf->TxPower);
+      dev->GetRrc()->SetSrsPeriodicity (conf->EnbSrsPeriodicity);
+      dev->GetPhy()->GetDlSpectrumPhy()->GetRxAntenna()->SetAttribute
+          ("Orientation", DoubleValue(conf->EnbAntennaOrientation));
+      dev->GetPhy()->GetUlSpectrumPhy()->GetRxAntenna()->SetAttribute
+          ("Orientation", DoubleValue(conf->EnbAntennaOrientation));
 
       NS_LOG_INFO ("Enb " << Names::FindName(node) << " TxPower=" << conf->TxPower <<
                    " Srs=" << conf->EnbSrsPeriodicity);
@@ -352,14 +358,14 @@ CreateLteLAN (NodeContainer &gateways, NodeContainer &clients,
       NS_LOG_INFO ("Ue " << Names::FindName(node) << " TxPower=" << conf->TxPower);
     }
 
-
+  /*
   std::map <std::string, std::list<std::string> > nodesIdToGwId;
   NS_LOG_INFO ("Decodifying " << lan.NPerG << "...");
   DecodifyLanNPerG (lan.NPerG, nodesIdToGwId);
 
   if (nodesIdToGwId.size () != gateways.GetN ())
     {
-      NS_FATAL_ERROR ("Less gw specified than the total number, in NPerG");
+      NS_FATAL_ERROR ("Decodified " << nodesIdToGwId.size() << " gw over " << gateways.GetN ());
     }
 
   FOR_EACH_NODE (it, gateways)
@@ -384,6 +390,10 @@ CreateLteLAN (NodeContainer &gateways, NodeContainer &clients,
         lteHelper->Attach(ueDev, enbDev);
       }
   }
+  */
+
+  lteHelper->AttachToClosestEnb(ueDevices, enbDevices);
+
 /*
   Ptr<EpcTft> tftTCP = Create<EpcTft> ();
   Ptr<EpcTft> tftUDP = Create<EpcTft> ();
@@ -1126,12 +1136,15 @@ main (int argc, char *argv[])
   std::string   configFilePath;
   bool          printExample = false;
   bool          printDayToDay = false;
+  bool          printPlanned = false;
 
   cmd.AddValue ("ConfigurationFile", "Configuration file path", configFilePath);
   cmd.AddValue ("PrintExample", "Print an example configuration file and exit",
                 printExample);
   cmd.AddValue ("PrintDayToDay", "Print an example configuration for d2d and exit",
                 printDayToDay);
+  cmd.AddValue ("PrintPlanned", "Print an example configuration for pla and exit",
+                printPlanned);
 
   cmd.Parse    (argc, argv);
 
@@ -1144,7 +1157,7 @@ main (int argc, char *argv[])
   outputConfig.ConfigureAttributes ();
   */
 
-  if (!printExample && !printDayToDay && configFilePath.empty ())
+  if (!printExample && !printDayToDay && !printPlanned && configFilePath.empty ())
     {
       NS_FATAL_ERROR ("No configuration file. Running dummy simulation.. Done.");
     }
@@ -1163,6 +1176,11 @@ main (int argc, char *argv[])
   else if (printDayToDay)
     {
       PrintDayToDay();
+      return 0;
+    }
+  else if (printPlanned)
+    {
+      PrintPlanned();
       return 0;
     }
 

@@ -326,9 +326,11 @@ class GatewaySection : public NodeSection
 public:
   GatewaySection (const std::string &name);
 
-  uint32_t EnbSrsPeriodicity;
   Ipv4Address ExternalAddress;
 
+
+  uint32_t EnbSrsPeriodicity;
+  double EnbAntennaOrientation;
   std::string P2PDelay;    //!< delay of lan (if applicable)
   std::string P2PDataRate; //!< rate of lan (if applicable)
   std::string P2PQueueType;
@@ -435,8 +437,6 @@ void DecodifyLanNPerG (const std::string &NPerG,
                        std::map <std::string, std::list<std::string> > &nodesIdToGwId);
 void PrintGnuplottableEnbListToFile (std::string filename);
 void PrintGnuplottableUeListToFile (std::string filename);
-
-void PrintDayToDay ();
 
 } // namespace ns3
 #endif // PPDRTCLANUTILS_H

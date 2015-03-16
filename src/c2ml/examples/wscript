@@ -8,7 +8,7 @@ def build(bld):
                                              'applications', 'flow-monitor', 'lte',
                                              'mobility', 'netanim'])
     obj.source = ['ppdr-tc-lan.cc', 'ppdr-tc-statistics.cc', 'INIReader.cc',
-                  'ini.c', 'ppdr-tc-utils.cc']
+                  'ini.c', 'ppdr-tc-utils.cc', 'ppdr-tc-scenarios.cc']
 
     obj = bld.create_ns3_program('noordwijk-transfer', ['c2ml', 'internet', 'point-to-point',
                                                         'applications', 'flow-monitor'])
