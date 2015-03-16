@@ -642,7 +642,7 @@ PrintDayToDay ()
     }
 
   GatewaySection gw ("gateway0");
-  gw.TxPower = 80;
+  gw.TxPower = 40;
   gw.Position = "[0.0,0.0,35.0]";
   gw.PrintExample();
 
@@ -815,6 +815,58 @@ PrintDayToDay ()
     bulk4.InstalledOn = "remote4";
     bulk4.ConnectedTo = "client9";
     bulk4.PrintExample();
+  }
+
+  // Police : 3 remote with 3 sink, and 12 clients with onoff
+  {
+    AppSection udp1("app26"), udp2("app27"), udp3("app28");
+
+    OnOffSection *onOff[12] = { OnOffSection ("app29"), OnOffSection ("app30"),
+                                OnOffSection ("app31"), OnOffSection ("app32"),
+                                OnOffSection ("app33"), OnOffSection ("app34"),
+                                OnOffSection ("app35"), OnOffSection ("app36"),
+                                OnOffSection ("app37"), OnOffSection ("app38"),
+                                OnOffSection ("app39"), OnOffSection ("app40")
+                              };
+
+    udp1.Port = udp2.Port = udp3.Port = 443;
+    udp1.Protocol = udp2.Protocol = udp3.Protocol = "UDP";
+    udp1.ConnectedTo = udp2.ConnectedTo = udp3.ConnectedTo = "any";
+
+    udp1.InstalledOn = "remote6";
+    udp1.PrintExample();
+    udp2.InstalledOn = "remote7";
+    udp2.PrintExample();
+    udp3.InstalledOn = "remote8";
+    udp3.PrintExample();
+
+    for (uint32_t i=0; i<11; ++i)
+      {
+        std::stringstream name;
+
+        onOff[i]->AppType = "OnOff";
+        onOff[i]->Port = 443;
+        onOff[i]->Protocol = "UDP";
+
+        name << "client" << i+14;
+        onOff[i]->InstalledOn = name.str();
+
+        if (i%3 == 0)
+          {
+            onOff[i]->ConnectedTo = "remote6";
+          }
+        else if (i%3 == 1)
+          {
+            onOff[i]->ConnectedTo = "remote7";
+          }
+        else if (i%3 == 2)
+          {
+            onOff[i]->ConnectedTo = "remote8";
+          }
+
+        onOff[i]->PrintExample();
+      }
+
   }
 
 }
