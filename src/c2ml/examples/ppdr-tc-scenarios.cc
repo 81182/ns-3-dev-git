@@ -104,7 +104,7 @@ PrintDayToDay ()
 
     // data rate for udp onoff
     onoff1.DataRate = onoff2.DataRate = onoff3.DataRate = onoff4.DataRate =
-        onoff5.DataRate = "20kb/s";
+        onoff5.DataRate = "20kB/s";
 
     // CONNECT!
 
@@ -181,7 +181,7 @@ PrintDayToDay ()
 
     // data rate for udp onoff
     onoff1.DataRate = onoff2.DataRate = onoff3.DataRate = onoff4.DataRate =
-        onoff5.DataRate = "20kb/s";
+        onoff5.DataRate = "20kB/s";
 
     // CONNECT!
 
@@ -432,7 +432,77 @@ PrintPlanned ()
 
   // applications
   {
+    for (uint32_t i=0; i<lan.ClientN; ++i)
+      {
+        std::stringstream sendName, recvName, sendAppName, recvAppName;
+        sendAppName << "app" << i;
+        recvAppName << "app" << lan.ClientN+i;
 
+        if (i%2 == 0)
+          {
+            sendName << "client" << i;
+            recvName << "remote" << i;
+          }
+        else
+          {
+            sendName << "remote" << i;
+            recvName << "client" << i;
+          }
+
+        if (i<lan.ClientN*90/100)
+          {
+            OnOffSection onOff (sendAppName.str());
+            AppSection recv (recvAppName.str());
+
+            onOff.Port = recv.Port = 443;
+            onOff.Protocol = recv.Protocol = "UDP";
+            onOff.DataRate = "20kB/s";
+
+            onOff.InstalledOn = sendName.str();
+            onOff.ConnectedTo = recvName.str();
+
+            recv.InstalledOn = recvName.str();
+            recv.ConnectedTo = "any";
+
+            onOff.PrintExample();
+            recv.PrintExample();
+          }
+        else if (i<lan.ClientN*95/100)
+          {
+            OnOffSection onOff (sendAppName.str());
+            AppSection recv (recvAppName.str());
+
+            onOff.Port = recv.Port = 22;
+            onOff.Protocol = recv.Protocol = "TCP";
+            onOff.DataRate = "40kB/s";
+
+            onOff.InstalledOn = sendName.str();
+            onOff.ConnectedTo = recvName.str();
+
+            recv.InstalledOn = recvName.str();
+            recv.ConnectedTo = "any";
+
+            onOff.PrintExample();
+            recv.PrintExample();
+          }
+        else
+          {
+            BulkSendSection bulk (sendAppName.str());
+            AppSection recv (recvAppName.str());
+
+            bulk.Port = recv.Port = 21;
+            bulk.Protocol = recv.Protocol = "TCP";
+
+            bulk.InstalledOn = sendName.str();
+            bulk.ConnectedTo = recvName.str();
+
+            recv.InstalledOn = recvName.str();
+            recv.ConnectedTo = "any";
+
+            bulk.PrintExample();
+            recv.PrintExample();
+          }
+      }
   }
 
 
