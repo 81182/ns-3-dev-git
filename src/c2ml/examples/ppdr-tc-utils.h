@@ -274,9 +274,12 @@ class AppSection : public Section
 {
 public:
   AppSection (const std::string &name);
+  AppSection (uint32_t n);
 
   virtual std::string GetName (void) { return m_name; }
   virtual ~AppSection () { }
+
+  virtual void Init ();
 
   std::string InstalledOn;
   std::string ConnectedTo;
@@ -304,7 +307,10 @@ class BulkSendSection : public AppSection
 {
 public:
   BulkSendSection (const std::string &name);
+  BulkSendSection (uint32_t n);
   virtual ~BulkSendSection () { }
+
+  virtual void Init ();
 
   uint32_t MaxBytes;
   uint32_t SendSize;
@@ -314,7 +320,10 @@ class OnOffSection : public BulkSendSection
 {
 public:
   OnOffSection (const std::string &name);
+  OnOffSection (uint32_t n);
   virtual ~OnOffSection () { }
+
+  virtual void Init ();
 
   std::string OnTime;
   std::string OffTime;

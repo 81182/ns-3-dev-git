@@ -294,6 +294,21 @@ AppSection::AppSection (const std::string &name)
 {
   m_name = name;
 
+  Init ();
+}
+
+AppSection::AppSection (uint32_t n)
+{
+  std::stringstream name;
+  name << "app" << n;
+  m_name = name.str ();
+
+  Init ();
+}
+
+void
+AppSection::Init ()
+{
   DECLARE_KEY ("double", "StartTime",    "", &StartTime,    0.0);
   DECLARE_KEY ("double", "StopTime",     "", &StopTime,     60.0);
   DECLARE_KEY ("string", "ConnectedTo", "", &ConnectedTo, "remote0");
@@ -309,8 +324,18 @@ AppSection::AppSection (const std::string &name)
   DECLARE_KEY ("string", "SocketType",   "", &SocketType,   "ns3::TcpCubic");
 }
 
-
 BulkSendSection::BulkSendSection (const std::string &name) : AppSection (name)
+{
+  Init ();
+}
+
+BulkSendSection::BulkSendSection (uint32_t n) : AppSection (n)
+{
+  Init ();
+}
+
+void
+BulkSendSection::Init ()
 {
   DECLARE_KEY ("uint32", "MaxBytes", "", &MaxBytes, 0);
   DECLARE_KEY ("uint32", "SendSize", "", &SendSize, 500);
@@ -320,9 +345,20 @@ BulkSendSection::BulkSendSection (const std::string &name) : AppSection (name)
 
 OnOffSection::OnOffSection (const std::string &name) : BulkSendSection (name)
 {
+  Init ();
+}
+
+OnOffSection::OnOffSection (uint32_t n) : BulkSendSection (n)
+{
+  Init ();
+}
+
+void
+OnOffSection::Init ()
+{
   DECLARE_KEY ("string", "DataRate", "", &DataRate, "500kb/s");
-  DECLARE_KEY ("string", "OnTime", "", &OnTime, "ns3::ConstantRandomVariable[Constant=1.0]");
-  DECLARE_KEY ("string", "OffTime", "", &OffTime, "ns3::ConstantRandomVariable[Constant=1.0]");
+  DECLARE_KEY ("string", "OnTime", "", &OnTime, "ns3::UniformRandomVariable[Min=0.0,Max=1.0]");
+  DECLARE_KEY ("string", "OffTime", "", &OffTime, "ns3::UniformRandomVariable[Min=0.0,Max=1.0]");
 
   AppType = "OnOff";
 }
