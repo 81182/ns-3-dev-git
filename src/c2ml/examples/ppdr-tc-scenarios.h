@@ -4,7 +4,8 @@
 namespace ppdrtc {
 
 void PrintDayToDay ();
-void PrintPlanned ();
+void PrintPlanned (bool infrastructured);
+void PrintUnplannedNoBackhaul ();
 
 } // namespace ppdrtc
 #endif // PPDRTCSCENARIOS_H

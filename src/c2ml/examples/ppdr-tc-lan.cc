@@ -991,7 +991,7 @@ BuildServices (NodeToConfigurationMap &configurationMap, INIReader &cfg)
 
   for (uint32_t i=0; i<UINT32_MAX; ++i)
     {
-      NS_ASSERT (i<=1000);
+      NS_ASSERT (i<=10000);
 
       std::stringstream ss;
       ss << "app" << i;
@@ -1136,15 +1136,21 @@ main (int argc, char *argv[])
   std::string   configFilePath;
   bool          printExample = false;
   bool          printDayToDay = false;
-  bool          printPlanned = false;
+  bool          printInfraPlanned = false;
+  bool          printSatPlanned = false;
+  bool          printNoBackhaultUnplanned = false;
 
   cmd.AddValue ("ConfigurationFile", "Configuration file path", configFilePath);
   cmd.AddValue ("PrintExample", "Print an example configuration file and exit",
                 printExample);
   cmd.AddValue ("PrintDayToDay", "Print an example configuration for d2d and exit",
                 printDayToDay);
-  cmd.AddValue ("PrintPlanned", "Print an example configuration for pla and exit",
-                printPlanned);
+  cmd.AddValue ("PrintInfraPlanned", "Print an example configuration for pla infra and exit",
+                printInfraPlanned);
+  cmd.AddValue ("PrintSatPlanned", "Print an example configuration for pla sat and exit",
+                printSatPlanned);
+  cmd.AddValue ("PrintNoBackhaulUnplanned", "Print an example configuration for unpla no backhaul and exit",
+                printNoBackhaultUnplanned);
 
   cmd.Parse    (argc, argv);
 
@@ -1157,7 +1163,8 @@ main (int argc, char *argv[])
   outputConfig.ConfigureAttributes ();
   */
 
-  if (!printExample && !printDayToDay && !printPlanned && configFilePath.empty ())
+  if (!printExample && !printDayToDay && !printSatPlanned &&
+      !printInfraPlanned && !printNoBackhaultUnplanned && configFilePath.empty ())
     {
       NS_FATAL_ERROR ("No configuration file. Running dummy simulation.. Done.");
     }
@@ -1178,9 +1185,19 @@ main (int argc, char *argv[])
       PrintDayToDay();
       return 0;
     }
-  else if (printPlanned)
+  else if (printInfraPlanned)
     {
-      PrintPlanned();
+      PrintPlanned(true);
+      return 0;
+    }
+  else if (printSatPlanned)
+    {
+      PrintPlanned(false);
+      return 0;
+    }
+  else if (printNoBackhaultUnplanned)
+    {
+      PrintUnplannedNoBackhaul ();
       return 0;
     }
 

@@ -19,18 +19,7 @@ PrintDayToDay ()
   lan.ClientN = 26;
   lan.EnablePcapUserNetwork = false;
   lan.GatewayN = 1;
-  std::string NPerG;
-  {
-    std::stringstream names;
-    names << "[gateway0:";
-    for (uint32_t i = 0; i<24; ++i)
-      {
-        names << "client" << i <<",";
-      }
-    names << "client25]";
-    NPerG = names.str();
-  }
-  lan.NPerG = NPerG;
+  lan.NPerG = "";
   lan.Type = "lte";
   lan.PrintExample();
 
@@ -296,14 +285,21 @@ PrintDayToDay ()
 
 }
 
-// Infrastructured
 void
-PrintPlanned ()
+PrintPlanned (bool infrastructured)
 {
   GeneralSection general;
 
-  general.Prefix = "ppdr-tc-pla-a-0";
-  general.RemoteN = 1;
+  if (infrastructured)
+    {
+      general.Prefix = "ppdr-tc-pla-a-0";
+    }
+  else
+    {
+      general.Prefix = "ppdr-tc-pla-b-0";
+    }
+
+  general.RemoteN = 103;
   general.StopTime = 60;
   general.PrintExample();
 
@@ -312,46 +308,25 @@ PrintPlanned ()
   lan.ClientN = 600;
   lan.EnablePcapUserNetwork = false;
   lan.GatewayN = 16;
-
-  std::string NPerG;
-  {
-    for (uint32_t gw=0; gw<16; ++gw)
-      {
-        std::stringstream names;
-        uint32_t to, from;
-
-        if (gw == 15)
-          {
-            from = gw*37;
-            to = (gw*37)+36+8;
-          }
-        else
-          {
-            from = gw*37;
-            to = (gw*37)+36;
-          }
-
-        names << "[gateway" << gw << ":";
-
-        for (uint32_t client=from; client<to; ++client)
-          {
-            names << "client" << client << ",";
-          }
-        names << "client" << to << "];";
-
-        NPerG += names.str();
-      }
-  }
-
-  lan.NPerG = NPerG;
+  lan.NPerG = "";
   lan.Type = "lte";
   lan.PrintExample();
 
   BackhaulSection backhaul;
 
-  backhaul.P2PDataRate = "1Gb/s";
-  backhaul.P2PDelay = "10ms";
-  backhaul.P2PQueueType = "ns3::CoDelQueue";
+  if (infrastructured)
+    {
+      backhaul.P2PDataRate = "1Gb/s";
+      backhaul.P2PDelay = "10ms";
+      backhaul.P2PQueueType = "ns3::CoDelQueue";
+    }
+  else
+    {
+      backhaul.P2PDataRate = "500Mb/s";
+      backhaul.P2PDelay = "350ms";
+      backhaul.P2PQueueType = "ns3::DropTailQueue";
+    }
+
   backhaul.PrintExample();
 
   LteSection lte;
@@ -432,80 +407,240 @@ PrintPlanned ()
 
   // applications
   {
-    for (uint32_t i=0; i<lan.ClientN; ++i)
+    uint32_t appN = 0;
+    for (uint32_t i=0; i<general.RemoteN; ++i)
       {
-        std::stringstream sendName, recvName, sendAppName, recvAppName;
-        sendAppName << "app" << i;
-        recvAppName << "app" << lan.ClientN+i;
+        std::stringstream remoteName, peerName1, peerName2;
+        remoteName << "remote" << i;
+        peerName1 << "client" << i;
+        peerName2 << "client" << (i+1) % lan.ClientN;
 
-        if (i%2 == 0)
+        AppSection recvTcp21(appN++), recvTcp22(appN++), recvUdp443(appN++);
+
+        recvTcp21.Protocol = "TCP";
+        recvTcp21.Port = 21;
+        recvTcp21.InstalledOn = remoteName.str();
+        recvTcp21.ConnectedTo = "any";
+        recvTcp21.PrintExample();
+
+        recvTcp22.Protocol = "TCP";
+        recvTcp22.Port = 22;
+        recvTcp22.InstalledOn = remoteName.str();
+        recvTcp22.ConnectedTo = "any";
+        recvTcp22.PrintExample();
+
+        recvUdp443.Protocol = "UDP";
+        recvUdp443.Port = 443;
+        recvUdp443.InstalledOn = remoteName.str();
+        recvUdp443.ConnectedTo = "any";
+        recvUdp443.PrintExample();
+
+        if (i<general.RemoteN*90/100)
           {
-            sendName << "client" << i;
-            recvName << "remote" << i;
+            OnOffSection onOffUdp443(appN++), onOffTcp22(appN++);
+
+            onOffUdp443.Port = 443;
+            onOffUdp443.Protocol = "UDP";
+            onOffUdp443.DataRate = "20kB/s";
+            onOffUdp443.InstalledOn = remoteName.str();
+            onOffUdp443.ConnectedTo = peerName1.str();
+
+            onOffTcp22.Port = 22;
+            onOffTcp22.Protocol = "TCP";
+            onOffTcp22.DataRate = "40kB/s";
+            onOffTcp22.InstalledOn = remoteName.str();
+            onOffTcp22.ConnectedTo = peerName2.str();
+
+            onOffUdp443.PrintExample();
+            onOffTcp22.PrintExample();
           }
         else
           {
-            sendName << "remote" << i;
-            recvName << "client" << i;
+            BulkSendSection bulkTcp21(appN++);
+
+            bulkTcp21.Port = 21;
+            bulkTcp21.Protocol = "TCP";
+            bulkTcp21.InstalledOn = remoteName.str();
+            bulkTcp21.ConnectedTo = peerName1.str();
+            bulkTcp21.PrintExample();
           }
+      }
+
+    for (uint32_t i=0; i<lan.ClientN; ++i)
+      {
+        std::stringstream clientName, peerName1, peerName2;
+
+        clientName << "client" << i;
+        peerName1 << "remote" << (i%(general.RemoteN-1));
+        peerName2 << "remote" << (i%(general.RemoteN-2));
+
+        AppSection recvTcp21(appN++), recvTcp22(appN++), recvUdp443(appN++);
+
+        recvTcp21.Protocol = "TCP";
+        recvTcp21.Port = 21;
+        recvTcp21.InstalledOn = clientName.str();
+        recvTcp21.ConnectedTo = "any";
+        recvTcp21.PrintExample();
+
+        recvTcp22.Protocol = "TCP";
+        recvTcp22.Port = 22;
+        recvTcp22.InstalledOn = clientName.str();
+        recvTcp22.ConnectedTo = "any";
+        recvTcp22.PrintExample();
+
+        recvUdp443.Protocol = "UDP";
+        recvUdp443.Port = 443;
+        recvUdp443.InstalledOn = clientName.str();
+        recvUdp443.ConnectedTo = "any";
+        recvUdp443.PrintExample();
 
         if (i<lan.ClientN*90/100)
           {
-            OnOffSection onOff (sendAppName.str());
-            AppSection recv (recvAppName.str());
+            OnOffSection onOff (appN++);
 
-            onOff.Port = recv.Port = 443;
-            onOff.Protocol = recv.Protocol = "UDP";
+            onOff.Port = 443;
+            onOff.Protocol = "UDP";
             onOff.DataRate = "20kB/s";
 
-            onOff.InstalledOn = sendName.str();
-            onOff.ConnectedTo = recvName.str();
-
-            recv.InstalledOn = recvName.str();
-            recv.ConnectedTo = "any";
+            onOff.InstalledOn = clientName.str();
+            onOff.ConnectedTo = peerName1.str();
 
             onOff.PrintExample();
-            recv.PrintExample();
           }
         else if (i<lan.ClientN*95/100)
           {
-            OnOffSection onOff (sendAppName.str());
-            AppSection recv (recvAppName.str());
+            OnOffSection onOff (appN++);
 
-            onOff.Port = recv.Port = 22;
-            onOff.Protocol = recv.Protocol = "TCP";
+            onOff.Port = 22;
+            onOff.Protocol = "TCP";
             onOff.DataRate = "40kB/s";
-
-            onOff.InstalledOn = sendName.str();
-            onOff.ConnectedTo = recvName.str();
-
-            recv.InstalledOn = recvName.str();
-            recv.ConnectedTo = "any";
-
+            onOff.InstalledOn = clientName.str();
+            onOff.ConnectedTo = peerName1.str();
             onOff.PrintExample();
-            recv.PrintExample();
           }
         else
           {
-            BulkSendSection bulk (sendAppName.str());
-            AppSection recv (recvAppName.str());
+            BulkSendSection bulk (appN++);
 
-            bulk.Port = recv.Port = 21;
-            bulk.Protocol = recv.Protocol = "TCP";
+            bulk.Port = 21;
+            bulk.Protocol = "TCP";
 
-            bulk.InstalledOn = sendName.str();
-            bulk.ConnectedTo = recvName.str();
-
-            recv.InstalledOn = recvName.str();
-            recv.ConnectedTo = "any";
+            bulk.InstalledOn = clientName.str();
+            bulk.ConnectedTo = peerName2.str();
 
             bulk.PrintExample();
-            recv.PrintExample();
           }
       }
   }
+}
 
+void
+PrintUnplannedNoBackhaul ()
+{
+  GeneralSection general;
 
+  general.Prefix = "ppdr-tc-unp-a-0";
+
+  general.RemoteN = 0;
+  general.StopTime = 60;
+  general.PrintExample();
+
+  LanSection lan;
+
+  lan.ClientN = 610;
+  lan.EnablePcapUserNetwork = false;
+  lan.GatewayN = 200;
+  lan.NPerG = "";
+  lan.Type = "lte";
+  lan.PrintExample();
+
+  BackhaulSection backhaul;
+  backhaul.P2PDataRate = "1Gb/s";
+  backhaul.P2PDelay = "10ms";
+  backhaul.P2PQueueType = "ns3::CoDelQueue";
+  backhaul.PrintExample();
+
+  LteSection lte;
+
+  lte.PrintExample();
+
+  StatisticsSection statistics;
+  statistics.PrintExample();
+
+  // Gateways
+  {
+    Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
+    Ptr<UniformRandomVariable> y = CreateObject<UniformRandomVariable> ();
+    Ptr<UniformRandomVariable> g = CreateObject<UniformRandomVariable> ();
+
+    x->SetAttribute("Min", DoubleValue (0.0));
+    x->SetAttribute("Max", DoubleValue (10000.0));
+
+    y->SetAttribute("Min", DoubleValue (0.0));
+    y->SetAttribute("Max", DoubleValue (10000.0));
+
+    g->SetAttribute("Min", DoubleValue (0.0));
+    g->SetAttribute("Max", DoubleValue (360.0));
+
+    for (uint32_t i=0; i<lan.GatewayN; ++i)
+      {
+        std::stringstream name, position;
+
+        position << x->GetValue() << "," <<  y->GetValue() << ",15";
+
+        name << "gateway" << i;
+        GatewaySection *gw = new GatewaySection (name.str());
+
+        gw->TxPower = 40;
+        gw->EnbSrsPeriodicity = 80;
+        gw->Position = position.str();
+        gw->EnbAntennaOrientation = g->GetValue();
+        gw->PrintExample();
+
+        delete gw;
+      }
+  }
+
+  // clients
+  {
+    Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
+    Ptr<UniformRandomVariable> y = CreateObject<UniformRandomVariable> ();
+
+    x->SetAttribute("Min", DoubleValue (0.0));
+    x->SetAttribute("Max", DoubleValue (10000.0));
+
+    y->SetAttribute("Min", DoubleValue (0.0));
+    y->SetAttribute("Max", DoubleValue (10000.0));
+
+    for (uint32_t i=0; i<lan.ClientN; ++i)
+      {
+        std::stringstream nodename, position;
+        nodename << "client" << i;
+
+        ClientSection client (nodename.str());
+
+        position << x->GetValue() << "," << y->GetValue() <<",1.5";
+        client.Position = position.str();
+        client.PrintExample();
+      }
+  }
+
+  // remotes
+  {
+    for (uint32_t i=0; i<general.RemoteN; ++i)
+      {
+        std::stringstream nodename;
+        nodename << "remote" << i;
+
+        RemoteSection remote (nodename.str());
+        remote.Position = "[10000.0,10000.0,25.0]";
+        remote.PrintExample();
+      }
+  }
+
+  // applications
+  {
+  }
 }
 
 } // namespace ppdr-tc
