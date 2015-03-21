@@ -1136,8 +1136,8 @@ main (int argc, char *argv[])
   std::string   configFilePath;
   bool          printExample = false;
   bool          printDayToDay = false;
-  bool          printInfraPlanned = false;
-  bool          printSatPlanned = false;
+  bool          printPlanned = false;
+  bool          printPlannedInfrastructureless = false;
   bool          printNoBackhaultUnplanned = false;
 
   cmd.AddValue ("ConfigurationFile", "Configuration file path", configFilePath);
@@ -1145,10 +1145,10 @@ main (int argc, char *argv[])
                 printExample);
   cmd.AddValue ("PrintDayToDay", "Print an example configuration for d2d and exit",
                 printDayToDay);
-  cmd.AddValue ("PrintInfraPlanned", "Print an example configuration for pla infra and exit",
-                printInfraPlanned);
-  cmd.AddValue ("PrintSatPlanned", "Print an example configuration for pla sat and exit",
-                printSatPlanned);
+  cmd.AddValue ("PrintPlanned", "Print an example configuration for pla infra and exit",
+                printPlanned);
+  cmd.AddValue ("PrintPlannedInfrastructureless", "Print an example configuration for pla sat and exit",
+                printPlannedInfrastructureless);
   cmd.AddValue ("PrintNoBackhaulUnplanned", "Print an example configuration for unpla no backhaul and exit",
                 printNoBackhaultUnplanned);
 
@@ -1163,8 +1163,8 @@ main (int argc, char *argv[])
   outputConfig.ConfigureAttributes ();
   */
 
-  if (!printExample && !printDayToDay && !printSatPlanned &&
-      !printInfraPlanned && !printNoBackhaultUnplanned && configFilePath.empty ())
+  if (!printExample && !printDayToDay && !printPlannedInfrastructureless &&
+      !printPlanned && !printNoBackhaultUnplanned && configFilePath.empty ())
     {
       NS_FATAL_ERROR ("No configuration file. Running dummy simulation.. Done.");
     }
@@ -1182,22 +1182,20 @@ main (int argc, char *argv[])
     }
   else if (printDayToDay)
     {
-      PrintDayToDay();
+      DayToDay d2d (26, 9);
+      d2d.PrintExample();
       return 0;
     }
-  else if (printInfraPlanned)
+  else if (printPlanned)
     {
-      PrintPlanned(true);
+      Planned pl (600, 103);
+      pl.PrintExample();
       return 0;
     }
-  else if (printSatPlanned)
+  else if (printPlannedInfrastructureless)
     {
-      PrintPlanned(false);
-      return 0;
-    }
-  else if (printNoBackhaultUnplanned)
-    {
-      PrintUnplannedNoBackhaul ();
+      PlannedInfrastructureless pl (600, 103);
+      pl.PrintExample();
       return 0;
     }
 
