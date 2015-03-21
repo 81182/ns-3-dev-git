@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <string>
+#include <ctime>
 
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
@@ -696,11 +697,13 @@ FlowMonStats (Ptr<FlowMonitor> monitor, FlowMonitorHelper &flowmon,
 
       std::ofstream outFile;
       FlowMonitor::FlowStats stat = iter->second;
+      std::stringstream port;
+      port << t.destinationPort;
 
       outFile.open((general.Prefix+"-"+Names::FindName(source)+"-"+
-                   Names::FindName(dest)+"-l3stats.txt").c_str());
+                   Names::FindName(dest)+"-"+port.str()+"-l3stats.txt").c_str());
 
-      outFile << "#TX (p)\tRX(p)\tLOST (p)\tAVGDELAY(ns)\tAVGJITTER(ns)" << std::endl;
+      outFile << "#TX (B)\tRX(B)\tLOST (p)\tAVGDELAY(ms)\tAVGJITTER(ms)" << std::endl;
 
       outFile << stat.txBytes << "\t" << stat.rxBytes << "\t" <<
              stat.lostPackets << "\t";
@@ -1129,9 +1132,31 @@ BuildAndPrintExample ()
   return 0;
 }
 
+static std::string ActualTime ()
+{
+  std::stringstream ss;
+
+  time_t t = time(0);   // get time now
+  struct tm * now = localtime( & t );
+
+  ss << (now->tm_year + 1900) << '-'
+     << (now->tm_mon + 1) << '-'
+     <<  now->tm_mday << " "
+     <<  now->tm_hour << "-" << now->tm_min << "-" << now->tm_sec;
+
+  return ss.str();
+}
+
+static void PrintTime ()
+{
+  NS_LOG_UNCOND ("At " << ActualTime() << " Elapsed " << Simulator::Now().GetSeconds() << " seconds");
+}
+
 int
 main (int argc, char *argv[])
 {
+  NS_LOG_UNCOND ("At " << ActualTime() << " Starting program.");
+
   CommandLine   cmd;
   std::string   configFilePath;
   bool          printExample = false;
@@ -1321,7 +1346,7 @@ main (int argc, char *argv[])
   ConnectGatewayStatistics(gateways, simStats, statistics);
   ConnectRemoteStatistics(remotes, simStats, statistics);
 
-  NS_LOG_INFO ("Run Simulation.");
+
   Simulator::Stop (Seconds (general.StopTime));
 
   if (statistics.EnableNetAnim)
@@ -1332,9 +1357,15 @@ main (int argc, char *argv[])
                                NodeContainer(lanClients, gateways, remotes, gwToRemote));
     }
 
+  for (uint32_t i=0; i<general.StopTime; i+=10)
+    {
+      Simulator::Schedule (Time::FromInteger(i, Time::S), PrintTime);
+    }
+
+  NS_LOG_UNCOND ("At " << ActualTime() << " Run Simulation.");
   Simulator::Run ();
   Simulator::Destroy();
-  NS_LOG_INFO ("Done.");
+  NS_LOG_UNCOND ("At " << ActualTime() << " Done Simulation.");
 
   // Output the things
   if (statistics.EnableFlowmon)
@@ -1350,6 +1381,8 @@ main (int argc, char *argv[])
     {
       delete it->second;
     }
+
+  NS_LOG_UNCOND ("At " << ActualTime() << " Closing program.");
 
   return 0;
 }
