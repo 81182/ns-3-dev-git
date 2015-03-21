@@ -18,6 +18,7 @@
  */
 #include "ppdr-tc-statistics.h"
 #include <stdexcept>      // std::out_of_range
+#include <arpa/inet.h>    // inet fn
 
 namespace ppdrtc {
 using namespace ns3;
@@ -119,6 +120,39 @@ SourceTag::SetSource(std::string source)
   m_source = source;
 }
 
+bool
+InetPair::operator ==(const InetPair &other) const
+{
+  struct in_addr lhs_src, rhs_src, lhs_dst, rhs_dst;
+
+  inet_aton (src.c_str(), &lhs_src);
+  inet_aton (other.src.c_str(), &rhs_src);
+  inet_aton (dst.c_str(), &lhs_dst);
+  inet_aton (other.dst.c_str(), &rhs_dst);
+
+  return (lhs_src.s_addr == rhs_src.s_addr &&
+          lhs_dst.s_addr == rhs_dst.s_addr &&
+          port == other.port);
+}
+
+bool InetPair::operator <(const InetPair &other) const
+{
+  if (src < other.src)
+    return true;
+  if (dst < other.dst)
+    return true;
+  if (port < other.port)
+    return true;
+
+  return false;
+}
+
+bool
+InetPair::operator !=(const InetPair &other) const
+{
+  return !(*this == other);
+}
+
 Statistics::Statistics (double thSampling)
 {
   m_thSampling = thSampling;
@@ -154,28 +188,36 @@ Statistics::DeleteFromMap(DataMap &dataMap)
 }
 
 void
+Statistics::PreparePktForTracking (const std::string &from,
+                                   Ptr<const Packet> pkt)
+{
+  DelayJitterEstimation *delayEst;
+  SourceTag sourceTag;
+  sourceTag.SetSource(from);
+
+  try
+    {
+      delayEst = m_delayEst.at (from);
+    }
+  catch (const std::out_of_range& oor)
+    {
+      delayEst = new DelayJitterEstimation ();
+      m_delayEst.insert(m_delayEst.begin (), DelayEstPair (from, delayEst));
+    }
+
+  delayEst->PrepareTx(pkt);
+
+  pkt->AddByteTag(sourceTag);
+}
+
+void
 Statistics::Ipv4ClientTxCallback (std::string context, Ptr<const Packet> pkt,
                                   Ptr<Ipv4> ipv4, uint32_t ifIndex)
 {
   (void) ipv4;
   (void) ifIndex;
 
-  DelayJitterEstimation *delayEst;
-
-  try
-    {
-      delayEst = m_delayEst.at (context);
-    }
-  catch (const std::out_of_range& oor)
-    {
-      delayEst = new DelayJitterEstimation ();
-      m_delayEst.insert(m_delayEst.begin (), DelayEstPair (context, delayEst));
-    }
-
-  delayEst->PrepareTx(pkt);
-  SourceTag tag;
-  tag.SetSource(context);
-  pkt->AddByteTag(tag);
+  PreparePktForTracking (context, pkt);
 }
 
 void
@@ -186,17 +228,31 @@ Statistics::Ipv4GatewayTxCallback (std::string, Ptr<const Packet> pkt, Ptr<Ipv4>
 }
 
 void
-Statistics::Ipv4RemoteTxCallback (std::string, Ptr<const Packet> pkt, Ptr<Ipv4> ipv4,
-                                  uint32_t ifIndex)
+Statistics::Ipv4RemoteTxCallback (std::string context, Ptr<const Packet> pkt,
+                                  Ptr<Ipv4> ipv4, uint32_t ifIndex)
 {
+  (void) ipv4;
+  (void) ifIndex;
 
+  PreparePktForTracking (context, pkt);
 }
 
 void
-Statistics::Ipv4ClientRxCallback (std::string, Ptr<const Packet> pkt, Ptr<Ipv4> ipv4,
-                                  uint32_t ifIndex)
+Statistics::Ipv4ClientRxCallback (std::string context, Ptr<const Packet> pkt,
+                                  Ptr<Ipv4> ipv4, uint32_t ifIndex)
 {
+  (void) ipv4;
+  (void) ifIndex;
 
+  SourceTag tag;
+
+  pkt->FindFirstMatchingByteTag(tag);
+
+  NS_ASSERT (!tag.GetSource().empty());
+
+  std::string source = tag.GetSource();
+
+  ProcessPacketRcvd(source, context, pkt);
 }
 
 void
@@ -204,6 +260,72 @@ Statistics::Ipv4GatewayRxCallback (std::string, Ptr<const Packet> pkt, Ptr<Ipv4>
                                    uint32_t ifIndex)
 {
 
+}
+
+uint16_t
+Statistics::GetPortFromPkt (Ptr<const Packet> pkt)
+{
+  uint16_t port = 0;
+  Ptr<Packet> packet = pkt->Copy();
+
+  Ipv4Header ipv4Header;
+
+  packet->RemoveHeader (ipv4Header);
+  uint8_t protocol = ipv4Header.GetProtocol();
+
+  if (protocol == 6)
+    {
+      TcpHeader tcpHeader;
+      packet->RemoveHeader(tcpHeader);
+      port = tcpHeader.GetDestinationPort();
+    }
+  else if (protocol == 17)
+    {
+      UdpHeader udpHeader;
+      packet->RemoveHeader(udpHeader);
+      port = udpHeader.GetDestinationPort();
+    }
+  else
+    {
+      NS_FATAL_ERROR ("Protocol " << protocol << " not supported");
+    }
+
+  return port;
+}
+
+void
+Statistics::ProcessPacketRcvd (const std::string &src, const std::string &dest,
+                               Ptr<const Packet> pkt)
+{
+  DelayJitterEstimation *delayEst;
+
+  try
+    {
+      delayEst = m_delayEst.at (src);
+    }
+  catch (const std::out_of_range& oor)
+    {
+      (void) oor;
+      NS_FATAL_ERROR ("No TX callback registered");
+    }
+
+  delayEst->RecordRx(pkt);
+
+  uint16_t port = GetPortFromPkt(pkt);
+
+  InetPair key (src, dest, port);
+
+  NS_LOG_UNCOND ("Add Delay Point for " << (std::string) key);
+  AddPoint (m_delayData, key, Simulator::Now().GetSeconds(),
+            delayEst->GetLastDelay().GetSeconds());
+  NS_LOG_UNCOND ("Add Jitter Point for " << (std::string) key);
+  AddPoint (m_jitterData, key, Simulator::Now().GetSeconds(),
+            delayEst->GetLastJitter());
+
+  NS_LOG_UNCOND ("Add Bytes Point for " << (std::string) key);
+  KeepTrackOfBytes (m_rxBytesFromSources, m_throughputFromSources, key, pkt->GetSize());
+  NS_LOG_UNCOND ("Add Total B Point for " << (std::string) key);
+  KeepTrackOfBytes (m_rxBytesTotal, m_throughputTotal, key, pkt->GetSize());
 }
 
 void
@@ -214,71 +336,61 @@ Statistics::Ipv4RemoteRxCallback (std::string context, Ptr<const Packet> pkt,
   (void) ifIndex;
 
   SourceTag tag;
+
   pkt->FindFirstMatchingByteTag(tag);
+
   NS_ASSERT (!tag.GetSource().empty());
+
   std::string source = tag.GetSource();
 
-  DelayJitterEstimation *delayEst;
-  try
-    {
-      delayEst = m_delayEst.at (source);
-    }
-  catch (const std::out_of_range& oor)
-    {
-      NS_FATAL_ERROR ("No TX callback registered");
-    }
-
-  delayEst->RecordRx(pkt);
-
-  AddPoint (m_delayData, source, Simulator::Now().GetSeconds(),
-            delayEst->GetLastDelay().GetSeconds());
-  AddPoint (m_jitterData, source, Simulator::Now().GetSeconds(),
-            delayEst->GetLastJitter());
-
-  KeepTrackOfBytes(m_rxBytesFromSources, m_throughputFromSources, source, pkt->GetSize());
-  KeepTrackOfBytes (m_rxBytesTotal, m_throughputTotal, context, pkt->GetSize());
+  ProcessPacketRcvd(source, context, pkt);
 }
 
 void
-Statistics::AddPoint(DataMap &dataMap,
-                     const std::string &key, double x, double y)
+Statistics::AddPoint(DataMap &dataMap, const InetPair &key, double x, double y)
 {
   Gnuplot2dDataset *dataSet;
+
   try
     {
       dataSet = dataMap.at(key);
+      NS_LOG_UNCOND ("preso data per " << (std::string) key);
     }
   catch (const std::out_of_range& oor)
     {
+      (void) oor;
       dataSet = new Gnuplot2dDataset ();
-      dataMap.insert(dataMap.begin(),
-                     std::pair<std::string, Gnuplot2dDataset*> (key, dataSet));
+      dataMap.insert(dataMap.begin(), DataPair (key, dataSet));
+      NS_LOG_UNCOND ("INSERT data for " << (std::string) key);
     }
 
   dataSet->Add(x, y);
 }
 
 void
-Statistics::KeepTrackOfBytes(DataMap &bytesDM, DataMap &throughputDM, const std::string &key,
-                             uint32_t size)
+Statistics::KeepTrackOfBytes(DataMap &bytesDM, DataMap &throughputDM,
+                             const InetPair &key, uint32_t size)
 {
-  static std::map<std::string, uint32_t> rxBytes;
-  static std::map<std::string, uint32_t> rxBytesStepBefore;
+  typedef std::map<InetPair, uint32_t> BytesMap;
+
+  static BytesMap rxBytes;
+  static BytesMap rxBytesStepBefore;
   static Time from = Time (0);
   static Time to = Time(0+m_thSampling);
-  std::map<std::string, uint32_t>::iterator itBytes, itBytesStepBefore;
+
+  BytesMap::iterator itBytes, itBytesStepBefore;
 
   itBytes = rxBytes.find(key);
   itBytesStepBefore = rxBytesStepBefore.find(key);
 
   if (itBytes == rxBytes.end())
     {
-      std::pair<std::map<std::string, uint32_t>::iterator, bool> ret;
-      ret = rxBytes.insert(std::pair<std::string,uint32_t> (key,0));
+      std::pair<std::map<InetPair, uint32_t>::iterator, bool> ret;
+      ret = rxBytes.insert (std::make_pair (key, 0));
       itBytes = ret.first;
       NS_ASSERT (ret.second);
 
-      ret = rxBytesStepBefore.insert(std::pair<std::string, uint32_t> (key,0));
+      ret = rxBytesStepBefore.insert(std::make_pair (key, 0));
       itBytesStepBefore = ret.first;
       NS_ASSERT (ret.second);
     }
@@ -361,8 +473,8 @@ Statistics::OutputGnuplot (DataMap &dataMap, const std::string &prefix,
 
       std::ofstream gnuplotFile, dataFile;
 
-      std::string nodeName = it->first;
-      std::string fileName = prefix+"-"+nodeName;
+      InetPair inetPair = it->first;
+      std::string fileName = prefix+"-"+ (std::string) inetPair;
 
       std::string dataFileName = fileName+".data";
 

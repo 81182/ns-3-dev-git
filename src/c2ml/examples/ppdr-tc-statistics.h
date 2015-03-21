@@ -24,7 +24,48 @@
 #include "ns3/network-module.h"
 
 namespace ppdrtc {
+
 using namespace ns3;
+
+class InetPair
+{
+public:
+  InetPair () { }
+  InetPair (const std::string &source, const std::string &dest, uint32_t p)
+  {
+    src = source;
+    dst = dest;
+    port = p;
+  }
+
+
+  bool operator==(const InetPair &other) const;
+  bool operator!=(const InetPair &other) const;
+  bool operator<(const InetPair &other) const;
+
+  InetPair & operator=(const InetPair &rhs)
+  {
+    if (this != &rhs)
+      {
+        src = rhs.src;
+        dst = rhs.dst;
+        port = rhs.port;
+      }
+
+    return *this;
+  }
+
+  operator std::string () const
+  {
+    std::stringstream ss;
+    ss << port;
+    return src + "-" + dst + "-" + ss.str();
+  }
+
+  std::string src;
+  std::string dst;
+  uint16_t    port;
+};
 
 class Statistics
 {
@@ -53,8 +94,8 @@ protected:
   typedef std::map<std::string, DelayJitterEstimation*> DelayEstMap;
   typedef std::pair<std::string, DelayJitterEstimation*> DelayEstPair;
 
-  typedef std::map<std::string, Gnuplot2dDataset*> DataMap;
-  typedef std::pair<std::string, Gnuplot2dDataset*> DataPair;
+  typedef std::map<InetPair, Gnuplot2dDataset*> DataMap;
+  typedef std::pair<InetPair, Gnuplot2dDataset*> DataPair;
 
   typedef DataMap DelayDataMap;
   typedef DataPair DelayDataPair;
@@ -77,10 +118,14 @@ protected:
   double m_thSampling;
 
 private:
-  static void AddPoint (DataMap &dataMap,
-                        const std::string &key, double x, double y);
+  static void AddPoint (DataMap &dataMap, const InetPair &key, double x, double y);
+  static uint16_t GetPortFromPkt (Ptr<const Packet> pkt);
+  void PreparePktForTracking (const std::string &from, Ptr<const Packet> pkt);
+  void ProcessPacketRcvd (const std::string &src, const std::string &dest,
+                                 Ptr<const Packet> pkt);
+
   void KeepTrackOfBytes (DataMap &bytesDM, DataMap &throughputDM,
-                         const std::string &key, uint32_t size);
+                         const InetPair &key, uint32_t size);
   static void DeleteFromMap (DataMap &dataMap);
   static void DeleteFromMap (DelayEstMap &dataMap);
   static void OutputGnuplot (DataMap &dataMap, const std::string &prefix,
