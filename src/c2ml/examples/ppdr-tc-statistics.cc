@@ -120,39 +120,6 @@ SourceTag::SetSource(std::string source)
   m_source = source;
 }
 
-bool
-InetPair::operator ==(const InetPair &other) const
-{
-  struct in_addr lhs_src, rhs_src, lhs_dst, rhs_dst;
-
-  inet_aton (src.c_str(), &lhs_src);
-  inet_aton (other.src.c_str(), &rhs_src);
-  inet_aton (dst.c_str(), &lhs_dst);
-  inet_aton (other.dst.c_str(), &rhs_dst);
-
-  return (lhs_src.s_addr == rhs_src.s_addr &&
-          lhs_dst.s_addr == rhs_dst.s_addr &&
-          port == other.port);
-}
-
-bool InetPair::operator <(const InetPair &other) const
-{
-  if (src < other.src)
-    return true;
-  if (dst < other.dst)
-    return true;
-  if (port < other.port)
-    return true;
-
-  return false;
-}
-
-bool
-InetPair::operator !=(const InetPair &other) const
-{
-  return !(*this == other);
-}
-
 Statistics::Statistics (double thSampling)
 {
   m_thSampling = thSampling;
@@ -160,30 +127,11 @@ Statistics::Statistics (double thSampling)
 
 Statistics::~Statistics ()
 {
-  DeleteFromMap (m_delayData);
-  DeleteFromMap (m_jitterData);
-  DeleteFromMap (m_delayEst);
-}
-
-void
-Statistics::DeleteFromMap(DelayEstMap &dataMap)
-{
-  DelayEstMap::iterator it;
-
-  for (it = dataMap.begin(); it != dataMap.end(); ++it)
+  for (Connections::iterator it = m_connections.begin(); it != m_connections.end(); ++it)
     {
-      delete it->second;
-    }
-}
+      InetPair *p = (*it);
 
-void
-Statistics::DeleteFromMap(DataMap &dataMap)
-{
-  DataMap::iterator it;
-
-  for (it = dataMap.begin(); it != dataMap.end(); ++it)
-    {
-      delete it->second;
+      delete p;
     }
 }
 
@@ -293,6 +241,27 @@ Statistics::GetPortFromPkt (Ptr<const Packet> pkt)
   return port;
 }
 
+InetPair*
+Statistics::GetInetPair (const std::string &src, const std::string &dest,
+                         uint16_t port)
+{
+  for (Connections::iterator it = m_connections.begin(); it != m_connections.end(); ++it)
+    {
+      InetPair *p = (*it);
+
+      if (p->src.compare(src) == 0 &&
+          p->dst.compare(dest) == 0 &&
+          p->port == port)
+        {
+          return p;
+        }
+    }
+
+  InetPair *ret = new InetPair (src, dest, port);
+  m_connections.insert(m_connections.begin(), ret);
+  return ret;
+}
+
 void
 Statistics::ProcessPacketRcvd (const std::string &src, const std::string &dest,
                                Ptr<const Packet> pkt)
@@ -313,19 +282,11 @@ Statistics::ProcessPacketRcvd (const std::string &src, const std::string &dest,
 
   uint16_t port = GetPortFromPkt(pkt);
 
-  InetPair key (src, dest, port);
+  InetPair *p = GetInetPair (src, dest, port);
 
-  NS_LOG_UNCOND ("Add Delay Point for " << (std::string) key);
-  AddPoint (m_delayData, key, Simulator::Now().GetSeconds(),
-            delayEst->GetLastDelay().GetSeconds());
-  NS_LOG_UNCOND ("Add Jitter Point for " << (std::string) key);
-  AddPoint (m_jitterData, key, Simulator::Now().GetSeconds(),
-            delayEst->GetLastJitter());
-
-  NS_LOG_UNCOND ("Add Bytes Point for " << (std::string) key);
-  KeepTrackOfBytes (m_rxBytesFromSources, m_throughputFromSources, key, pkt->GetSize());
-  NS_LOG_UNCOND ("Add Total B Point for " << (std::string) key);
-  KeepTrackOfBytes (m_rxBytesTotal, m_throughputTotal, key, pkt->GetSize());
+  p->delayData.Add(Simulator::Now().GetSeconds(),  delayEst->GetLastDelay().GetSeconds());
+  p->jitterData.Add(Simulator::Now().GetSeconds(), delayEst->GetLastJitter());
+  p->bytesData.Add(Simulator::Now().GetSeconds(), pkt->GetSize());
 }
 
 void
@@ -347,71 +308,7 @@ Statistics::Ipv4RemoteRxCallback (std::string context, Ptr<const Packet> pkt,
 }
 
 void
-Statistics::AddPoint(DataMap &dataMap, const InetPair &key, double x, double y)
-{
-  Gnuplot2dDataset *dataSet;
-
-  try
-    {
-      dataSet = dataMap.at(key);
-      NS_LOG_UNCOND ("preso data per " << (std::string) key);
-    }
-  catch (const std::out_of_range& oor)
-    {
-      (void) oor;
-      dataSet = new Gnuplot2dDataset ();
-      dataMap.insert(dataMap.begin(), DataPair (key, dataSet));
-      NS_LOG_UNCOND ("INSERT data for " << (std::string) key);
-    }
-
-  dataSet->Add(x, y);
-}
-
-void
-Statistics::KeepTrackOfBytes(DataMap &bytesDM, DataMap &throughputDM,
-                             const InetPair &key, uint32_t size)
-{
-  typedef std::map<InetPair, uint32_t> BytesMap;
-
-  static BytesMap rxBytes;
-  static BytesMap rxBytesStepBefore;
-  static Time from = Time (0);
-  static Time to = Time(0+m_thSampling);
-
-  BytesMap::iterator itBytes, itBytesStepBefore;
-
-  itBytes = rxBytes.find(key);
-  itBytesStepBefore = rxBytesStepBefore.find(key);
-
-  if (itBytes == rxBytes.end())
-    {
-      std::pair<std::map<InetPair, uint32_t>::iterator, bool> ret;
-      ret = rxBytes.insert (std::make_pair (key, 0));
-      itBytes = ret.first;
-      NS_ASSERT (ret.second);
-
-      ret = rxBytesStepBefore.insert(std::make_pair (key, 0));
-      itBytesStepBefore = ret.first;
-      NS_ASSERT (ret.second);
-    }
-
-  // This lose the last step... TODO
-  while (Simulator::Now() > to)
-    {
-      uint32_t bytesSinceStart = itBytes->second - itBytesStepBefore->second;
-      AddPoint (throughputDM, key, from.GetSeconds(), bytesSinceStart);
-
-      itBytesStepBefore->second = itBytes->second;
-      from = to;
-      to = Time::FromDouble(to.GetSeconds() + m_thSampling, Time::S);
-    }
-
-  itBytes->second += size;
-  AddPoint (bytesDM, key, Simulator::Now().GetSeconds(), itBytes->second);
-}
-
-void
-Statistics::Ipv4ClientDropCallback (std::string, const Ipv4Header &header, Ptr<const Packet> pkt,
+Statistics::Ipv4ClientDropCallback (std::string context, const Ipv4Header &header, Ptr<const Packet> pkt,
                                     Ipv4L3Protocol::DropReason dropReason,
                                     Ptr<Ipv4> ipv4, uint32_t ifIndex)
 {
@@ -436,59 +333,55 @@ Statistics::Ipv4RemoteDropCallback (std::string, const Ipv4Header &header, Ptr<c
 void
 Statistics::OutputStat(StatisticsSection &statistics, const std::string &prefix)
 {
-  if (statistics.EnableDelay)
+  for (Connections::iterator it = m_connections.begin(); it != m_connections.end(); ++it)
     {
-      OutputGnuplot (m_delayData, prefix+"-e2e-delay-from", "Time (s)", "E2E Delay (s)",
-                     "E2E Delay over Time");
-    }
+      InetPair *p = (*it);
+      if (statistics.EnableDelay)
+        {
+          OutputGnuplot (p, p->delayData, prefix+"-e2e-delay", "Time (s)", "E2E Delay (s)",
+                         "E2E Delay over Time");
+        }
 
-  if (statistics.EnableJitter)
-    {
-      OutputGnuplot (m_jitterData, prefix+"-e2e-jitter-from", "Time (s)", "E2E Jitter (s)",
-                     "E2E Jitter over Time");
-    }
+      if (statistics.EnableJitter)
+        {
+          OutputGnuplot (p, p->jitterData, prefix+"-e2e-jitter", "Time (s)", "E2E Jitter (s)",
+                         "E2E Jitter over Time");
+        }
 
-  if (statistics.EnableThroughput)
-    {
-      OutputGnuplot (m_rxBytesFromSources, prefix+"-e2e-l3rxbytes-from",
-                     "Time (s)", "E2E IP Rx Bytes (B)", "E2E Rx Bytes");
-      OutputGnuplot (m_rxBytesTotal, prefix+"-e2e-l3rxbytes","Time (s)",
-                     "E2E IP Rx Bytes (B)", "E2E Total Rx Bytes");
-      OutputGnuplot (m_throughputFromSources, prefix+"-e2e-l3throughput-from",
-                     "Time (s)", "E2E IP Throughput (B)", "E2E Throughput");
-      OutputGnuplot (m_throughputTotal, prefix+"-e2e-l3throughput", "Time (s)",
-                     "E2E IP Throughput (B)", "E2E Total throughput");
+      if (statistics.EnableThroughput)
+        {
+          OutputGnuplot (p, p->bytesData, prefix+"-e2e-l3bytes",
+                         "Time (s)", "E2E IP Rx Bytes (B)", "E2E Rx Bytes");
+        }
     }
 }
 
+
 void
-Statistics::OutputGnuplot (DataMap &dataMap, const std::string &prefix,
+Statistics::OutputGnuplot (InetPair *conn, const Gnuplot2dDataset &dataSet,
+                           const std::string &prefix,
                            const std::string &xLegend, const std::string &yLegend,
                            const std::string &title)
 {
-  DataMap::iterator it;
-  for (it = dataMap.begin(); it != dataMap.end(); ++it)
-    {
-      Gnuplot plot;
+  Gnuplot plot;
 
-      std::ofstream gnuplotFile, dataFile;
+  std::ofstream gnuplotFile, dataFile;
 
-      InetPair inetPair = it->first;
-      std::string fileName = prefix+"-"+ (std::string) inetPair;
+  std::string fileName = prefix+"-"+ (std::string) (*conn);
 
-      std::string dataFileName = fileName+".data";
+  std::string dataFileName = fileName+".data";
 
-      plot.AddDataset(*(it->second));
-      plot.SetLegend(xLegend, yLegend);
-      plot.SetTitle(title);
-      plot.SetOutputFilename(fileName+".png");
+  plot.AddDataset(dataSet);
+  plot.SetLegend(xLegend, yLegend);
+  plot.SetTitle(title);
+  plot.SetOutputFilename(fileName+".png");
 
-      gnuplotFile.open ((fileName+".gnuplot").c_str());
-      dataFile.open ((dataFileName).c_str());
-      plot.GenerateOutput(gnuplotFile, dataFile, dataFileName);
+  gnuplotFile.open ((fileName+".gnuplot").c_str());
+  dataFile.open ((dataFileName).c_str());
+  plot.GenerateOutput(gnuplotFile, dataFile, dataFileName);
 
-      gnuplotFile.close();
-      dataFile.close();
-    }
+  gnuplotFile.close();
+  dataFile.close();
 }
+
 } //namespace ns3

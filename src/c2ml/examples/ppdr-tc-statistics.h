@@ -31,17 +31,13 @@ class InetPair
 {
 public:
   InetPair () { }
+
   InetPair (const std::string &source, const std::string &dest, uint32_t p)
   {
     src = source;
     dst = dest;
     port = p;
   }
-
-
-  bool operator==(const InetPair &other) const;
-  bool operator!=(const InetPair &other) const;
-  bool operator<(const InetPair &other) const;
 
   InetPair & operator=(const InetPair &rhs)
   {
@@ -65,7 +61,12 @@ public:
   std::string src;
   std::string dst;
   uint16_t    port;
+
+  Gnuplot2dDataset delayData;
+  Gnuplot2dDataset jitterData;
+  Gnuplot2dDataset bytesData;
 };
+
 
 class Statistics
 {
@@ -94,41 +95,23 @@ protected:
   typedef std::map<std::string, DelayJitterEstimation*> DelayEstMap;
   typedef std::pair<std::string, DelayJitterEstimation*> DelayEstPair;
 
-  typedef std::map<InetPair, Gnuplot2dDataset*> DataMap;
-  typedef std::pair<InetPair, Gnuplot2dDataset*> DataPair;
-
-  typedef DataMap DelayDataMap;
-  typedef DataPair DelayDataPair;
-
-  typedef DataMap JitterDataMap;
-  typedef DataPair JitterDataPair;
-
-  typedef DataMap RxByteDataMap;
-  typedef DataPair RxByteDataPair;
+  typedef std::vector<InetPair*> Connections;
 
   DelayEstMap m_delayEst;
-  DelayDataMap m_delayData;
-  JitterDataMap m_jitterData;
-  RxByteDataMap m_rxBytesFromSources;
-  RxByteDataMap m_rxBytesTotal;
 
-  RxByteDataMap m_throughputFromSources;
-  RxByteDataMap m_throughputTotal;
+  Connections m_connections;
 
   double m_thSampling;
 
 private:
-  static void AddPoint (DataMap &dataMap, const InetPair &key, double x, double y);
   static uint16_t GetPortFromPkt (Ptr<const Packet> pkt);
+  InetPair* GetInetPair (const std::string &src, const std::string &dest,
+                         uint16_t port);
   void PreparePktForTracking (const std::string &from, Ptr<const Packet> pkt);
   void ProcessPacketRcvd (const std::string &src, const std::string &dest,
                                  Ptr<const Packet> pkt);
-
-  void KeepTrackOfBytes (DataMap &bytesDM, DataMap &throughputDM,
-                         const InetPair &key, uint32_t size);
-  static void DeleteFromMap (DataMap &dataMap);
-  static void DeleteFromMap (DelayEstMap &dataMap);
-  static void OutputGnuplot (DataMap &dataMap, const std::string &prefix,
+  void OutputGnuplot (InetPair *conn, const Gnuplot2dDataset &dataSet,
+                             const std::string &prefix,
                              const std::string &xLegend, const std::string &yLegend,
                              const std::string &title);
 };
