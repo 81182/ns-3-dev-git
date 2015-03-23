@@ -84,25 +84,41 @@ SourceTag::GetInstanceTypeId (void) const
 uint32_t
 SourceTag::GetSerializedSize (void) const
 {
-  return sizeof (uint32_t) + m_source.size() + sizeof(',');
+  return sizeof (uint32_t) + m_source.size();
 }
-void
-SourceTag::Serialize (TagBuffer i) const
-{
-  i.WriteU32(m_source.size());
-  i.WriteU8(',');
-  i.Write((uint8_t*) m_source.c_str(), m_source.size());
-}
-void
-SourceTag::Deserialize (TagBuffer i)
-{
-  uint32_t size = i.ReadU32();
-  i.ReadU8();
-  uint8_t *buffer = new uint8_t[size+1];
-  i.Read(buffer, size);
 
-  m_source = std::string (buffer, buffer+size);
+void
+SourceTag::Serialize (TagBuffer it) const
+{
+  uint32_t length = m_source.length();
+  it.WriteU32(length);
+
+  const char *str = m_source.c_str();
+
+  for (uint32_t i=0;i<length;++i)
+    {
+      it.WriteU8 (str[i]);
+    }
 }
+
+void
+SourceTag::Deserialize (TagBuffer it)
+{
+  uint32_t length = it.ReadU32 ();
+
+  char *str = new char [length+1];
+
+  for (uint32_t i=0;i<length;++i)
+    {
+      str[i] = it.ReadU8 ();
+    }
+
+  str[length] = '\0';
+
+  m_source = std::string (str);
+  delete str;
+}
+
 void
 SourceTag::Print (std::ostream &os) const
 {
