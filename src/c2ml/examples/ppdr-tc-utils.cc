@@ -190,15 +190,6 @@ Section::Fill (INIReader& ini)
     }
 }
 
-GeneralSection::GeneralSection ()
-{
-  DECLARE_KEY ("bool", "EnableC2ML",            "", &EnableC2ML, false);
-  DECLARE_KEY ("bool", "Verbose",               "",&Verbose, true);
-  DECLARE_KEY ("double", "StopTime", "", &StopTime, 60.0);
-  DECLARE_KEY ("uint32", "RemoteN", "", &RemoteN, 1);
-  DECLARE_KEY ("string", "Prefix", "", &Prefix, "ppdr-tc-simulation");
-}
-
 void
 Section::Print ()
 {
@@ -236,10 +227,18 @@ Section::Print ()
     }
 }
 
-LanSection::LanSection ()
+GeneralSection::GeneralSection ()
+{
+  DECLARE_KEY ("bool", "EnableC2ML",            "", &EnableC2ML, false);
+  DECLARE_KEY ("bool", "Verbose",               "",&Verbose, true);
+  DECLARE_KEY ("double", "StopTime", "", &StopTime, 60.0);
+  DECLARE_KEY ("uint32", "RemoteN", "", &RemoteN, 1);
+  DECLARE_KEY ("string", "Prefix", "", &Prefix, "ppdr-tc-simulation");
+}
+
+LanSection::LanSection () : Attributes ("lan")
 {
   DECLARE_KEY ("string", "Type",       "", &Type,       "lte");
-  DECLARE_KEY ("string", "Attributes", "", &Attributes, "none");
   DECLARE_KEY ("uint32", "ClientN",    "", &ClientN,    1);
   DECLARE_KEY ("uint32", "GatewayN",   "", &GatewayN,   1);
   DECLARE_KEY ("string", "NPerG",      "", &NPerG,      "[gateway0:client0]");
@@ -249,7 +248,7 @@ LanSection::LanSection ()
 void
 LanSection::Fill (INIReader &ini)
 {
-  Section::Fill (ini);
+  Attributes::Fill (ini);
 
   if (Type.compare("p2p") != 0 &&
       Type.compare("lte") != 0)
@@ -266,8 +265,6 @@ LanSection::Fill (INIReader &ini)
     {
       NS_FATAL_ERROR ("No gateway added in " << GetName () << "->GatewayN");
     }
-
-  ConfigureFromFile (Attributes);
 }
 
 BackhaulSection::BackhaulSection () : Section ()
@@ -387,7 +384,7 @@ GatewaySection::GatewaySection (const std::string &name) : NodeSection (name)
 
 Attributes::Attributes (const std::string &name)
 {
-  this->name = name;
+  m_name = name;
 
   DECLARE_KEY ("string", "Attribute", "", &Attribute, "none");
 }

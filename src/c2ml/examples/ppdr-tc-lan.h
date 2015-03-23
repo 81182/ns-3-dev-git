@@ -100,8 +100,26 @@
   * parameters (e.g. the name of the output files, simulation duration, and so
   * on) can be set and used in various blocks.
   *
-  * Each client can be configured by using a separate section of type
-  * ppdrtc::ClientSection. For instance, if you needs three clients (it doesn't
+  * For the LAN network, the relevant section to configure is ppdrtc::Lan. Here
+  * you can specify the number of clients (expressed as integer number) and the
+  * number of gateways of the network (configured through ppdrtc::GatewaySection,
+  * which mimics what happen with client nodes and so it is similar). Another
+  * important aspect is the type of the LAN network: LTE (configured through
+  * ppdrtc::LteSection) or P2P. For the P2P network, the parameters are inserted
+  * in each ppdrtc::ClientSection, as they can be different for different clients.
+  * Last but not least, you should write down the network topology, in other words,
+  * you should declare to what gateway each node will connect to. This has different
+  * meanings for different types of network; please refer to the technical documentation
+  * of the section for more information.
+  *
+  * To set the backhaul properties, there is the ppdrtc::BackhaulSection. At this
+  * time, only p2p is supported, with the same values for all links between
+  * gateways and remote. In other words, all remote nodes will be connected
+  * to all the gateways with a p2p link.
+  *
+  * Each node can be configured by using a separate section of type
+  * ppdrtc::ClientSection, ppdrtc::GatewaySection or ppdrtc::RemoteSection.
+  * For instance, if you needs three clients (it doesn't
   * matter, at this stage, to what gateways they will be connected) the following
   * section should be added to the configuration file:
   * \verbatim
@@ -120,21 +138,12 @@
   * the client name in the format "clienti" where i is a number between 0 and
   * client number - 1.
   *
-  * For the LAN network, the relevant section to configure is ppdrtc::Lan. Here
-  * you can specify the number of clients (expressed as integer number) and the
-  * number of gateways of the network (configured through ppdrtc::GatewaySection,
-  * which mimics what happen with client nodes and so it is similar). Another
-  * important aspect is the type of the LAN network: LTE (configured through
-  * ppdrtc::LteSection) or P2P. For the P2P network, the parameters are inserted
-  * in each ppdrtc::ClientSection, as they can be different for different clients.
-  * Last but not least, you should write down the network topology, in other words,
-  * you should declare to what gateway each node will connect to. This has different
-  * meanings for different types of network; please refer to the technical documentation
-  * of the section for more information.
-  *
-  * Then, a series of section of type ppdrtc::RemoteSection is expected (which
-  * represent the remote hosts) and finally a ppdrtc::StatisticsSection can be
+  * Then, a series of section of type ppdrtc::RemoteSection and ppdrtc::GatewaySection
+  * is expected (which represent the remote hosts) and finally a ppdrtc::StatisticsSection can be
   * written, in order to specify the desidered output data from the simulation.
+  *
+  * Please note that the order is not strict. You can write down the sections
+  * as you want.
   *
   * \subsection Applications Applications on the PPDR network
   *
@@ -152,100 +161,21 @@
   * ppdrtc::OnOffSection. The basic information about the application is where
   * it is installed on and where it needs to connect to.
   *
+  * \section Output Output
+  *
+  * Various output can be enabled by appropriately configuring the ppdrtc::StatisticSection
+  * section. The main class responsible for generating these output is the class
+  * ppdrtc::Statistic, which the read of its documentation is strongly suggested
+  * in order to actively using (and interpreting) the output of the simulation.
+  *
+  * BE MORE SPECIFIC PLEASE!
+  *
   * \section Configuration Start using PPDR-TC Simulator
   *
   * Here it is an example configuration file:
   *
   *\verbatim
-[general]
-EnableC2ML = false ;type=bool
-EnablePcapUserNetwork = false ;type=bool
-Prefix = ppdr-tc-simulation ;type=string
-RemoteN = 1 ;type=uint32
-StopTime = 60 ;type=double
-Verbose = true ;type=bool
-
-[lan]
-Attributes = none ;type=string
-ClientN = 1 ;type=uint32
-GatewayN = 1 ;type=uint32
-NPerG = [gateway0:client0] ;type=string
-Type = lte ;type=string
-
-[backhaul]
-EnablePcap = false ;type=bool
-P2PDataRate = 1Gb/s ;type=string
-P2PDelay = 10ms ;type=string
-P2PQueueType = ns3::DropTailQueue ;type=string
-Type = p2p ;type=string
-
-[lte]
-Attribute = none ;type=string
-CitySizeValue = SmallCity ;type=string
-DlBandwidth = 100 ;type=uint32
-DlEarfcn = 1575 ;type=uint32
-EnablePcapS1uLink = false ;type=bool
-EnablePcapX2Link = false ;type=bool
-EnableREM = false ;type=bool
-EnbAntennaMaxGain = 18 ;type=double
-EnbAntennaType = ns3::CosineAntennaModel ;type=string
-EnvironmentValue = UrbanEnvironment ;type=string
-HeightREM = 1.5 ;type=double
-PathlossType = ns3::OkumuraHataPropagationLossModel ;type=string
-SchedulerType = ns3::PfFfMacScheduler ;type=string
-UeAntennaModel = ns3::IsotropicAntennaModel ;type=string
-UlBandwidth = 100 ;type=uint32
-UlEarfcn = 19575 ;type=uint32
-XMaxREM = 1.5 ;type=double
-XMinREM = 1.5 ;type=double
-YMaxREM = 1.5 ;type=double
-YMinREM = 1.5 ;type=double
-
-[statistics]
-EnableDelay = true ;type=bool
-EnableFlowmon = true ;type=bool
-EnableJitter = true ;type=bool
-EnableQueue = true ;type=bool
-EnableThroughput = true ;type=bool
-ThroughputSamplingTime = 1 ;type=double
-
-[remote0]
-AppType = PacketSink ;type=string
-MobilityModel = ns3::ConstantPositionMobilityModel ;type=string
-Port = 5000 ;type=uint32
-Position = 0.0,0.0,1.5 ;type=string
-TxPower = 23 ;type=double
-
-[gateway0]
-EnbSrsPeriodicity = 80 ;type=uint32
-MobilityModel = ns3::ConstantPositionMobilityModel ;type=string
-P2PDataRate = none ;type=string
-P2PDelay = none ;type=string
-P2PQueueType = none ;type=string
-Position = 0.0,0.0,1.5 ;type=string
-TxPower = 23 ;type=double
-
-[client0]
-AppType = BulkSend ;type=string
-BNoordwijk = 0.3 ;type=double
-ConnectedTo = remote0 ;type=string
-CsiVariation = none ;type=string
-DelAckCount = 1 ;type=uint32
-InitialCwnd = 10 ;type=uint32
-InitialSSTh = 4000000 ;type=uint32
-LanDataRate = 100Mb/s ;type=string
-LanDelay = 10ms ;type=string
-MaxBytes = 0 ;type=uint32
-MobilityModel = ns3::ConstantPositionMobilityModel ;type=string
-Position = 0.0,0.0,1.5 ;type=string
-Protocol = TCP ;type=string
-QueueType = ns3::DropTailQueue ;type=string
-SendSize = 500 ;type=uint32
-SocketType = ns3::TcpCubic ;type=string
-StartTime = 0 ;type=double
-StopTime = 60 ;type=double
-TxPower = 23 ;type=double
-TxTime = 0.125 ;type=double
+attach the example
   \endverbatim
   *
   * \section Understanding Understanding the code
@@ -258,7 +188,8 @@ TxTime = 0.125 ;type=double
   * you can find some helpers in the ppdr-tc-lan.cc file. The statistics are
   * calculated (and, in some cases, obtained) in ppdr-tc-statistics.cc (and
   * in the relative class Statistics). Classes and functions for configuring
-  * the simulator are in ppdr-tc-utils.cc.
+  * the simulator are in ppdr-tc-utils.cc. Pre-defined scenarios can be found
+  * in ppdr-tc-scenarios.cc.
   *
   * You will be guided into the source code in a logical way through the main()
   * function; if you need something specialized, you can use the search tool
