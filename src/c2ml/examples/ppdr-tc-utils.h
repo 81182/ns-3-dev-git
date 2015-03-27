@@ -661,6 +661,8 @@ public:
    * \param name Name of the class (e.g. gateway0)
    */
   RemoteSection (const std::string &name);
+
+  virtual void MakeMeInstantiable() { }
 };
 
 /**

@@ -159,7 +159,7 @@ class Planned : public Scenario
 public:
   Planned(uint32_t clientN, uint32_t remoteN) : Scenario (clientN, remoteN)
   {
-
+    m_prefix = "ppdr-tc-pla-a-0";
   }
 
 protected:
@@ -171,6 +171,8 @@ protected:
   virtual void PrintGw () const;
   virtual void PrintClients () const;
   virtual void PrintRemotes () const;
+
+  std::string m_prefix;
 };
 
 class PlannedInfrastructureless : public Planned
@@ -179,11 +181,33 @@ public:
   PlannedInfrastructureless (uint32_t clientN, uint32_t remoteN) :
     Planned (clientN, remoteN)
   {
-
+    m_prefix = "ppdr-tc-pla-b-0";
   }
 
 protected:
   virtual void PrintBackhaul () const;
+};
+
+class Unplanned : public Scenario
+{
+public:
+  Unplanned(uint32_t clientN, uint32_t remoteN) : Scenario (clientN, remoteN)
+  {
+    m_prefix = "ppdr-tc-unp-a-0";
+  }
+
+protected:
+  virtual void PrintGeneral () const;
+  virtual void PrintLan () const;
+  virtual void PrintBackhaul () const;
+  virtual void PrintLte () const;
+  virtual void PrintStats () const;
+  virtual void PrintGw () const;
+  virtual void PrintClients () const;
+  virtual void PrintRemotes () const;
+  virtual void PrintApps () const;
+
+  std::string m_prefix;
 };
 
 } // namespace ppdrtc
