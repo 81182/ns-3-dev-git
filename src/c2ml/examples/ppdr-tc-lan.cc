@@ -1229,6 +1229,12 @@ main (int argc, char *argv[])
       pl.PrintExample();
       return 0;
     }
+  else if (printNoBackhaultUnplanned)
+    {
+      Unplanned pl (610, 0);
+      pl.PrintExample();
+      return 0;
+    }
 
   general.Fill (cfg);
   lan.Fill (cfg);

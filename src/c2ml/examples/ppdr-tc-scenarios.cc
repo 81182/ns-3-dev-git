@@ -437,7 +437,7 @@ Unplanned::PrintApps () const
       Scenario::PrintWebSink (installedOn.str(), appN++);
       Scenario::PrintFTPSink (installedOn.str(), appN++);
 
-      if (i < m_remoteN*50/100)
+      if (i < m_clientN*50/100)
         {
           Scenario::PrintAudioOnOff(installedOn.str(), peerName1.str(), appN++);
         }
