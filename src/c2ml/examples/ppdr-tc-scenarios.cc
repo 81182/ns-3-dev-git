@@ -462,7 +462,6 @@ Unplanned::PrintApps () const
       Scenario::PrintWebSink (installedOn.str(), appN++);
       Scenario::PrintFTPSink (installedOn.str(), appN++);
 
-
       double prob = x->GetValue();
 
       if (prob <= 0.1)
@@ -484,6 +483,8 @@ Unplanned::PrintApps () const
           Scenario::PrintAudioOnOff(installedOn.str(), peerName2.str(), appN++);
 
         }
+
+      prob = x->GetValue();
 
       if (prob <= m_ftpProb)
         {
