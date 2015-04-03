@@ -9,7 +9,7 @@ DayToDay::PrintGeneral () const
 {
   GeneralSection general;
 
-  general.Prefix = "ppdr-tc-d2d-a-0";
+  general.Prefix = m_prefix;
   general.RemoteN = m_remoteN;
   general.StopTime = 60;
   general.PrintExample();
