@@ -8,10 +8,38 @@ namespace ppdrtc {
 class Scenario
 {
 public:
-  Scenario(uint32_t clientN, uint32_t remoteN)
+  Scenario(uint32_t clientN, uint32_t remoteN, double ftpProb)
   {
+    NS_ASSERT (0<=ftpProb && ftpProb<=1);
+
     m_clientN = clientN;
     m_remoteN = remoteN;
+    m_ftpProb = ftpProb;
+
+    if (m_ftpProb == 0.1)
+      {
+        m_backgroundT = "10";
+      }
+    else if (m_ftpProb == 0.2)
+      {
+        m_backgroundT = "20";
+      }
+    else if (m_ftpProb == 0.3)
+      {
+        m_backgroundT = "30";
+      }
+    else if (m_ftpProb == 0.4)
+      {
+        m_backgroundT = "40";
+      }
+    else if (m_ftpProb == 0.5)
+      {
+        m_backgroundT = "50";
+      }
+    else
+      {
+        m_backgroundT = "0";
+      }
   }
 
   virtual ~Scenario()
@@ -134,15 +162,20 @@ protected:
 
   uint32_t m_clientN;
   uint32_t m_remoteN;
+  double m_ftpProb;
+  std::string m_backgroundT;
+  std::string m_prefix;
 };
 
 class DayToDay : public Scenario
 {
 public:
-  DayToDay(uint32_t clientN, uint32_t remoteN) : Scenario (clientN, remoteN)
+  DayToDay(uint32_t clientN, uint32_t remoteN, double ftpProb) :
+    Scenario (clientN, remoteN, ftpProb)
   {
-
+    m_prefix = "ppdr-tc-d2d-a-"+m_backgroundT;
   }
+
 protected:
   virtual void PrintGeneral () const;
   virtual void PrintLan () const;
@@ -157,9 +190,10 @@ protected:
 class Planned : public Scenario
 {
 public:
-  Planned(uint32_t clientN, uint32_t remoteN) : Scenario (clientN, remoteN)
+  Planned(uint32_t clientN, uint32_t remoteN, double ftpProb) :
+    Scenario (clientN, remoteN, ftpProb)
   {
-    m_prefix = "ppdr-tc-pla-a-0";
+    m_prefix = "ppdr-tc-pla-a-"+m_backgroundT;
   }
 
 protected:
@@ -171,17 +205,15 @@ protected:
   virtual void PrintGw () const;
   virtual void PrintClients () const;
   virtual void PrintRemotes () const;
-
-  std::string m_prefix;
 };
 
 class PlannedInfrastructureless : public Planned
 {
 public:
-  PlannedInfrastructureless (uint32_t clientN, uint32_t remoteN) :
-    Planned (clientN, remoteN)
+  PlannedInfrastructureless (uint32_t clientN, uint32_t remoteN, double ftpProb) :
+    Planned (clientN, remoteN, ftpProb)
   {
-    m_prefix = "ppdr-tc-pla-b-0";
+    m_prefix = "ppdr-tc-pla-b-"+m_backgroundT;
   }
 
 protected:
@@ -191,9 +223,10 @@ protected:
 class Unplanned : public Scenario
 {
 public:
-  Unplanned(uint32_t clientN, uint32_t remoteN) : Scenario (clientN, remoteN)
+  Unplanned(uint32_t clientN, uint32_t remoteN, double ftpProb) :
+    Scenario (clientN, remoteN, ftpProb)
   {
-    m_prefix = "ppdr-tc-unp-a-0";
+    m_prefix = "ppdr-tc-unp-a-"+m_backgroundT;
   }
 
 protected:
@@ -206,8 +239,6 @@ protected:
   virtual void PrintClients () const;
   virtual void PrintRemotes () const;
   virtual void PrintApps () const;
-
-  std::string m_prefix;
 };
 
 } // namespace ppdrtc

@@ -688,20 +688,38 @@ public:
   double StartTime;        //!< Node start time in simulation
   double StopTime;         //!< Node stop time in simulation
 
+protected:
+  std::string m_name;
+};
+
+class SinkSection : public AppSection
+{
+public:
+  SinkSection (const std::string &name) : AppSection (name) { AppType = "PacketSink"; }
+  SinkSection (uint32_t n) : AppSection (n) { AppType = "PacketSink"; }
+};
+
+class SendAppSection : public AppSection
+{
+public:
+  SendAppSection (const std::string &name);
+  SendAppSection (uint32_t n);
+
+  virtual ~SendAppSection () { }
+
+  virtual void Init ();
+
   uint32_t InitialCwnd;
   uint32_t InitialSSTh;
   uint32_t DelAckCount;
 
   std::string SocketType;
 
-  double TxTime;
-  double BNoordwijk;
-
-protected:
-  std::string m_name;
+  //double TxTime;
+  //double BNoordwijk;
 };
 
-class BulkSendSection : public AppSection
+class BulkSendSection : public SendAppSection
 {
 public:
   BulkSendSection (const std::string &name);

@@ -841,29 +841,42 @@ CreateSocket (AppSection *appConf, Ptr<Node> node)
   if (appConf->Protocol.compare("TCP") == 0)
     {
       Ptr<TcpL4Protocol> proto = node->GetObject<TcpL4Protocol> ();
+      SendAppSection *sendApp = dynamic_cast<SendAppSection*> (appConf);
       NS_ASSERT (proto != 0);
-      proto->SetAttribute("SocketType",
-                          TypeIdValue(TypeId::LookupByName(appConf->SocketType)));
+
+      if (sendApp != 0)
+        {
+          proto->SetAttribute("SocketType",
+                              TypeIdValue(TypeId::LookupByName(sendApp->SocketType)));
+        }
 
       socket = proto->CreateSocket ();
 
-      if (socket == 0)
+      if (socket == 0 && sendApp != 0)
         {
-          NS_FATAL_ERROR ("SocketType " << appConf->SocketType <<
+          NS_FATAL_ERROR ("SocketType " << sendApp->SocketType <<
                           " is not valid. Try ns3::TcpCubic");
         }
-
-      socket->SetAttribute ("InitialCwnd", UintegerValue (appConf->InitialCwnd));
-      socket->SetAttribute ("InitialSlowStartThreshold", UintegerValue (appConf->InitialSSTh));
-      socket->SetAttribute ("DelAckCount", UintegerValue (appConf->DelAckCount));
-
-      /* Special attributes for special socket */
-
-      if (appConf->SocketType.compare("TcpNoordwijk") == 0 ||
-          appConf->SocketType.compare("TcpNoordwijkMw") == 0)
+      else if (socket == 0)
         {
-          socket->SetAttribute ("TxTime", TimeValue (Seconds (appConf->TxTime)));
-          socket->SetAttribute ("B", TimeValue (Seconds (appConf->TxTime)));
+          NS_FATAL_ERROR ("Ok, I fail. Contact NAT.");
+        }
+
+
+      if (sendApp != 0)
+        {
+          socket->SetAttribute ("InitialCwnd", UintegerValue (sendApp->InitialCwnd));
+          socket->SetAttribute ("InitialSlowStartThreshold", UintegerValue (sendApp->InitialSSTh));
+          socket->SetAttribute ("DelAckCount", UintegerValue (sendApp->DelAckCount));
+
+          /* Special attributes for special socket */
+
+          if (sendApp->SocketType.compare("TcpNoordwijk") == 0 ||
+              sendApp->SocketType.compare("TcpNoordwijkMw") == 0)
+            {
+              //socket->SetAttribute ("TxTime", TimeValue (Seconds (sendApp->TxTime)));
+              //socket->SetAttribute ("B", TimeValue (Seconds (sendApp->TxTime)));
+            }
         }
     }
   else if (appConf->Protocol.compare("UDP") == 0)
@@ -1164,6 +1177,7 @@ main (int argc, char *argv[])
   bool          printPlanned = false;
   bool          printPlannedInfrastructureless = false;
   bool          printNoBackhaultUnplanned = false;
+  double        ftpProb = 0.0;
 
   cmd.AddValue ("ConfigurationFile", "Configuration file path", configFilePath);
   cmd.AddValue ("PrintExample", "Print an example configuration file and exit",
@@ -1176,6 +1190,7 @@ main (int argc, char *argv[])
                 printPlannedInfrastructureless);
   cmd.AddValue ("PrintNoBackhaulUnplanned", "Print an example configuration for unpla no backhaul and exit",
                 printNoBackhaultUnplanned);
+  cmd.AddValue ("FtpProb", "Background traffic % (0<= x <= 1)", ftpProb);
 
   cmd.Parse    (argc, argv);
 
@@ -1207,25 +1222,25 @@ main (int argc, char *argv[])
     }
   else if (printDayToDay)
     {
-      DayToDay d2d (26, 9);
+      DayToDay d2d (26, 9, ftpProb);
       d2d.PrintExample();
       return 0;
     }
   else if (printPlanned)
     {
-      Planned pl (600, 103);
+      Planned pl (600, 103, ftpProb);
       pl.PrintExample();
       return 0;
     }
   else if (printPlannedInfrastructureless)
     {
-      PlannedInfrastructureless pl (600, 103);
+      PlannedInfrastructureless pl (600, 103, ftpProb);
       pl.PrintExample();
       return 0;
     }
   else if (printNoBackhaultUnplanned)
     {
-      Unplanned pl (610, 0);
+      Unplanned pl (610, 0, ftpProb);
       pl.PrintExample();
       return 0;
     }

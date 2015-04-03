@@ -313,20 +313,35 @@ AppSection::Init ()
   DECLARE_KEY ("string", "AppType", "", &AppType, "PacketSink");
   DECLARE_KEY ("uint32", "Port", "", &Port, 5000);
   DECLARE_KEY ("string", "Protocol", "", &Protocol, "TCP");
-  DECLARE_KEY ("uint32", "InitialCwnd", "", &InitialCwnd, 10);
-  DECLARE_KEY ("uint32", "InitialSSTh", "", &InitialSSTh, 4000000);
-  DECLARE_KEY ("uint32", "DelAckCount", "", &DelAckCount, 1);
-  DECLARE_KEY ("double", "TxTime", "", &TxTime, 0.125);
-  DECLARE_KEY ("double", "BNoordwijk", "", &BNoordwijk, 0.300);
-  DECLARE_KEY ("string", "SocketType",   "", &SocketType,   "ns3::TcpCubic");
 }
 
-BulkSendSection::BulkSendSection (const std::string &name) : AppSection (name)
+SendAppSection::SendAppSection (const std::string &name) : AppSection (name)
 {
   Init ();
 }
 
-BulkSendSection::BulkSendSection (uint32_t n) : AppSection (n)
+SendAppSection::SendAppSection (uint32_t n) : AppSection (n)
+{
+  Init ();
+}
+
+void
+SendAppSection::Init()
+{
+  DECLARE_KEY ("uint32", "InitialCwnd", "", &InitialCwnd, 10);
+  DECLARE_KEY ("uint32", "InitialSSTh", "", &InitialSSTh, 4000000);
+  DECLARE_KEY ("uint32", "DelAckCount", "", &DelAckCount, 1);
+  //DECLARE_KEY ("double", "TxTime", "", &TxTime, 0.125);
+  //DECLARE_KEY ("double", "BNoordwijk", "", &BNoordwijk, 0.300);
+  DECLARE_KEY ("string", "SocketType",   "", &SocketType,   "ns3::TcpCubic");
+}
+
+BulkSendSection::BulkSendSection (const std::string &name) : SendAppSection (name)
+{
+  Init ();
+}
+
+BulkSendSection::BulkSendSection (uint32_t n) : SendAppSection (n)
 {
   Init ();
 }
