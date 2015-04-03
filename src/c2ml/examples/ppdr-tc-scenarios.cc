@@ -165,7 +165,7 @@ Scenario::PrintApps () const
 
       prob = x->GetValue();
 
-      if (prob <= 0.1)
+      if (prob <= m_ftpProb)
         {
           Scenario::PrintFtp(installedOn.str(), peerName4.str(), appN++);
         }
@@ -485,6 +485,7 @@ Unplanned::PrintApps () const
         }
 
       prob = x->GetValue();
+      NS_LOG_UNCOND ("PROB: " << prob);
 
       if (prob <= m_ftpProb)
         {
