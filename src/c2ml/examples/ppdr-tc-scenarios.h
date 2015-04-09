@@ -8,12 +8,16 @@ namespace ppdrtc {
 class Scenario
 {
 public:
-  Scenario(uint32_t clientN, uint32_t remoteN, double ftpProb)
+  Scenario(const std::string &tcp,
+           uint32_t clientN, uint32_t remoteUsers, uint32_t remoteN,
+           double ftpProb)
   {
     NS_ASSERT (0<=ftpProb && ftpProb<=1);
 
     m_clientN = clientN;
     m_remoteN = remoteN;
+    m_remoteUsers = remoteUsers;
+    m_tcp = tcp;
     m_ftpProb = ftpProb;
 
     if (m_ftpProb == 0.1)
@@ -39,6 +43,35 @@ public:
     else
       {
         m_backgroundT = "0";
+      }
+
+    if (m_tcp.compare("ns3::TcpCubic") == 0)
+      {
+        m_tcpT = "Cubic";
+      }
+    else if (m_tcp.compare("ns3::TcpHybla") == 0)
+      {
+        m_tcpT = "Hybla";
+      }
+    else if (m_tcp.compare("ns3::TcpHighSpeed") == 0)
+      {
+        m_tcpT = "Highspeed";
+      }
+    else if (m_tcp.compare("ns3::TcpTahoe") == 0)
+      {
+        m_tcpT = "Tahoe";
+      }
+    else if (m_tcp.compare("ns3::TcpNewReno") == 0)
+      {
+        m_tcpT = "NewReno";
+      }
+    else if (m_tcp.compare("ns3::TcpBic") == 0)
+      {
+        m_tcpT = "Bic";
+      }
+    else
+      {
+        NS_FATAL_ERROR ("TCP " << m_tcp << " not recognized");
       }
   }
 
@@ -122,12 +155,15 @@ public:
   }
 
   static void PrintWebOnOff (const std::string &installed,
-                               const std::string &connected, uint32_t appN)
+                             const std::string &connected,
+                             const std::string &tcp,
+                             uint32_t appN)
   {
     OnOffSection onOff(appN);
     onOff.Port = 80;
     onOff.Protocol = "TCP";
     onOff.DataRate = "20kB/s";
+    onOff.SocketType = tcp;
     onOff.OnTime = "ns3::UniformRandomVariable[Min=0.0,Max=1.0]";
     onOff.OffTime = "ns3::UniformRandomVariable[Min=0.0,Max=1.0]";
 
@@ -137,13 +173,15 @@ public:
   }
 
   static void PrintFtp (const std::string &installed,
-                        const std::string &connected, uint32_t appN)
+                        const std::string &connected,
+                        const std::string &tcp,
+                        uint32_t appN)
   {
     BulkSendSection bulk (appN);
 
     bulk.Port = 21;
     bulk.Protocol = "TCP";
-
+    bulk.SocketType = tcp;
     bulk.InstalledOn = installed;
     bulk.ConnectedTo = connected;
     bulk.PrintExample();
@@ -162,18 +200,29 @@ protected:
 
   uint32_t m_clientN;
   uint32_t m_remoteN;
+  uint32_t m_remoteUsers;
   double m_ftpProb;
+
+  std::string m_tcp;
+
+  std::string m_tcpT;
   std::string m_backgroundT;
   std::string m_prefix;
 };
 
+
 class DayToDay : public Scenario
 {
 public:
-  DayToDay(uint32_t clientN, uint32_t remoteN, double ftpProb) :
-    Scenario (clientN, remoteN, ftpProb)
+  DayToDay(const std::string &tcp,
+           uint32_t clientN, uint32_t remoteUsers, uint32_t remoteN,
+           double ftpProb) :
+    Scenario (tcp, clientN, remoteUsers, remoteN, ftpProb)
   {
-    m_prefix = "ppdr-tc-d2d-a-"+m_backgroundT;
+    std::stringstream ss;
+    ss << m_clientN;
+
+    m_prefix = "ppdrtc-d2d-"+ss.str()+"-"+m_tcpT+"-"+m_backgroundT;
   }
 
 protected:
@@ -190,10 +239,15 @@ protected:
 class Planned : public Scenario
 {
 public:
-  Planned(uint32_t clientN, uint32_t remoteN, double ftpProb) :
-    Scenario (clientN, remoteN, ftpProb)
+  Planned(const std::string &tcp,
+          uint32_t clientN, uint32_t remoteUsers, uint32_t remoteN,
+          double ftpProb) :
+    Scenario (tcp, clientN, remoteUsers, remoteN, ftpProb)
   {
-    m_prefix = "ppdr-tc-pla-a-"+m_backgroundT;
+    std::stringstream ss;
+    ss << m_clientN;
+
+    m_prefix = "ppdrtc-pla-wired-"+ss.str()+"-"+m_tcpT+"-"+m_backgroundT;
   }
 
 protected:
@@ -210,10 +264,15 @@ protected:
 class PlannedInfrastructureless : public Planned
 {
 public:
-  PlannedInfrastructureless (uint32_t clientN, uint32_t remoteN, double ftpProb) :
-    Planned (clientN, remoteN, ftpProb)
+  PlannedInfrastructureless (const std::string &tcp,
+                             uint32_t clientN, uint32_t remoteUsers, uint32_t remoteN,
+                             double ftpProb) :
+    Planned (tcp, clientN, remoteUsers, remoteN, ftpProb)
   {
-    m_prefix = "ppdr-tc-pla-b-"+m_backgroundT;
+    std::stringstream ss;
+    ss << m_clientN;
+
+    m_prefix = "ppdrtc-pla-sat-"+ss.str()+"-"+m_tcpT+"-"+m_backgroundT;
   }
 
 protected:
@@ -223,10 +282,15 @@ protected:
 class Unplanned : public Scenario
 {
 public:
-  Unplanned(uint32_t clientN, uint32_t remoteN, double ftpProb) :
-    Scenario (clientN, remoteN, ftpProb)
+  Unplanned(const std::string &tcp,
+            uint32_t clientN, uint32_t remoteUsers, uint32_t remoteN,
+            double ftpProb) :
+    Scenario (tcp, clientN, remoteUsers, remoteN, ftpProb)
   {
-    m_prefix = "ppdr-tc-unp-a-"+m_backgroundT;
+    std::stringstream ss;
+    ss << m_clientN;
+
+    m_prefix = "ppdrtc-unp-"+ss.str()+"-"+m_tcpT+"-"+m_backgroundT;
   }
 
 protected:
@@ -238,7 +302,6 @@ protected:
   virtual void PrintGw () const;
   virtual void PrintClients () const;
   virtual void PrintRemotes () const;
-  virtual void PrintApps () const;
 };
 
 } // namespace ppdrtc

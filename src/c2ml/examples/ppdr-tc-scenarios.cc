@@ -35,6 +35,7 @@ DayToDay::PrintBackhaul () const
   backhaul.P2PDataRate = "10Gb/s";
   backhaul.P2PDelay = "10ms";
   backhaul.P2PQueueType = "ns3::CoDelQueue";
+  backhaul.MaxBytes = 1500000;
   backhaul.PrintExample();
 }
 void
@@ -103,28 +104,34 @@ void
 Scenario::PrintApps () const
 {
   uint32_t appN = 0;
+  uint32_t div = m_remoteUsers / m_remoteN;
+  Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
+
+  x->SetAttribute("Min", DoubleValue (0.0));
+  x->SetAttribute("Max", DoubleValue (1.0));
 
   for (uint32_t i=0; i<m_remoteN; ++i)
     {
-      std::stringstream installedOn, peerName1;
+      std::stringstream installedOn;
       installedOn << "remote" << i;
-      peerName1 << "client" << (i+1)%m_clientN;
 
       Scenario::PrintAudioSink (installedOn.str(), appN++);
       Scenario::PrintVideoSink (installedOn.str(), appN++);
       Scenario::PrintWebSink (installedOn.str(), appN++);
       Scenario::PrintFTPSink (installedOn.str(), appN++);
 
-      if (i < m_remoteN*50/100)
+      for (uint32_t j=i*div; j<i*div+div; ++j)
         {
-          Scenario::PrintAudioOnOff(installedOn.str(), peerName1.str(), appN++);
+          double prob = x->GetValue();
+
+          if (prob < 0.5)
+            {
+              std::stringstream peerName1;
+              peerName1 << "client" << (j+1)%m_clientN;
+              Scenario::PrintAudioOnOff(installedOn.str(), peerName1.str(), appN++);
+            }
         }
     }
-
-  Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
-
-  x->SetAttribute("Min", DoubleValue (0.0));
-  x->SetAttribute("Max", DoubleValue (1.0));
 
   for (uint32_t i=0; i<m_clientN; ++i)
     {
@@ -140,7 +147,6 @@ Scenario::PrintApps () const
       Scenario::PrintWebSink (installedOn.str(), appN++);
       Scenario::PrintFTPSink (installedOn.str(), appN++);
 
-
       double prob = x->GetValue();
 
       if (prob <= 0.1)
@@ -152,7 +158,8 @@ Scenario::PrintApps () const
 
       if (prob <= 0.4)
         {
-          Scenario::PrintWebOnOff(installedOn.str(), peerName3.str(), appN++);
+          Scenario::PrintWebOnOff(installedOn.str(), peerName3.str(), m_tcp,
+                                  appN++);
         }
 
       prob = x->GetValue();
@@ -167,7 +174,8 @@ Scenario::PrintApps () const
 
       if (prob <= m_ftpProb)
         {
-          Scenario::PrintFtp(installedOn.str(), peerName4.str(), appN++);
+          Scenario::PrintFtp(installedOn.str(), peerName4.str(), m_tcp,
+                             appN++);
         }
     }
 }
@@ -177,7 +185,7 @@ Planned::PrintGeneral () const
 {
   GeneralSection general;
   general.Prefix = m_prefix;
-  general.RemoteN = 103;
+  general.RemoteN = m_remoteN; // from 103 originally
   general.StopTime = 60;
   general.PrintExample();
 }
@@ -203,6 +211,7 @@ Planned::PrintBackhaul () const
   backhaul.P2PDataRate = "10Gb/s";
   backhaul.P2PDelay = "10ms";
   backhaul.P2PQueueType = "ns3::CoDelQueue";
+  backhaul.MaxBytes = 1500000;
   backhaul.PrintExample();
 }
 
@@ -213,6 +222,7 @@ PlannedInfrastructureless::PrintBackhaul () const
   backhaul.P2PDataRate = "500Mb/s";
   backhaul.P2PDelay = "350ms";
   backhaul.P2PQueueType = "ns3::DropTailQueue";
+  backhaul.MaxBytes = 43750000;
   backhaul.PrintExample();
 }
 
@@ -300,15 +310,12 @@ Planned::PrintRemotes () const
 }
 
 
-
-// ASDASDASD
-
 void
 Unplanned::PrintGeneral () const
 {
   GeneralSection general;
   general.Prefix = m_prefix;
-  general.RemoteN = 0;
+  general.RemoteN = m_remoteN;
   general.StopTime = 60;
   general.PrintExample();
 }
@@ -330,9 +337,10 @@ void
 Unplanned::PrintBackhaul () const
 {
   BackhaulSection backhaul;
-  backhaul.P2PDataRate = "0b/s";
-  backhaul.P2PDelay = "0ms";
-  backhaul.P2PQueueType = "ns3::CoDelQueue";
+  backhaul.P2PDataRate = "500Mb/s";
+  backhaul.P2PDelay = "350ms";
+  backhaul.P2PQueueType = "ns3::DropTailQueue";
+  backhaul.MaxBytes = 43750000;
   backhaul.PrintExample();
 }
 
@@ -418,79 +426,6 @@ Unplanned::PrintRemotes () const
       RemoteSection remote (nodename.str());
       remote.Position = "[10000.0,10000.0,25.0]";
       remote.PrintExample();
-    }
-}
-
-void
-Unplanned::PrintApps () const
-{
-  uint32_t appN = 0;
-
-  for (uint32_t i=0; i<m_clientN; ++i)
-    {
-      std::stringstream installedOn, peerName1;
-      installedOn << "client" << i;
-      peerName1 << "client" << (i+1)%m_clientN;
-
-      Scenario::PrintAudioSink (installedOn.str(), appN++);
-      Scenario::PrintVideoSink (installedOn.str(), appN++);
-      Scenario::PrintWebSink (installedOn.str(), appN++);
-      Scenario::PrintFTPSink (installedOn.str(), appN++);
-
-      if (i < m_clientN*50/100)
-        {
-          Scenario::PrintAudioOnOff(installedOn.str(), peerName1.str(), appN++);
-        }
-    }
-
-  Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
-
-  x->SetAttribute("Min", DoubleValue (0.0));
-  x->SetAttribute("Max", DoubleValue (1.0));
-
-  for (uint32_t i=0; i<m_clientN; ++i)
-    {
-      std::stringstream installedOn, peerName1, peerName2, peerName3, peerName4;
-      installedOn << "client" << i;
-      peerName1 << "client" << (i+1)%m_clientN;
-      peerName2 << "client" << (i+2)%m_clientN;
-      peerName3 << "client" << (i+3)%m_clientN;
-      peerName4 << "client" << (i+4)%m_clientN;
-
-      Scenario::PrintAudioSink (installedOn.str(), appN++);
-      Scenario::PrintVideoSink (installedOn.str(), appN++);
-      Scenario::PrintWebSink (installedOn.str(), appN++);
-      Scenario::PrintFTPSink (installedOn.str(), appN++);
-
-      double prob = x->GetValue();
-
-      if (prob <= 0.1)
-        {
-         Scenario::PrintVideoOnOff(installedOn.str(), peerName1.str(), appN++);
-        }
-
-      prob = x->GetValue();
-
-      if (prob <= 0.4)
-        {
-          Scenario::PrintWebOnOff(installedOn.str(), peerName3.str(), appN++);
-        }
-
-      prob = x->GetValue();
-
-      if (prob <= 0.7)
-        {
-          Scenario::PrintAudioOnOff(installedOn.str(), peerName2.str(), appN++);
-
-        }
-
-      prob = x->GetValue();
-      NS_LOG_UNCOND ("PROB: " << prob);
-
-      if (prob <= m_ftpProb)
-        {
-          Scenario::PrintFtp(installedOn.str(), peerName4.str(), appN++);
-        }
     }
 }
 
