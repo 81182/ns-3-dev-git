@@ -1178,6 +1178,8 @@ main (int argc, char *argv[])
   bool          printPlannedInfrastructureless = false;
   bool          printNoBackhaultUnplanned = false;
   double        ftpProb = 0.0;
+  std::string   tcp     = "ns3::TcpCubic";
+  uint32_t      clientN = 600;
 
   cmd.AddValue ("ConfigurationFile", "Configuration file path", configFilePath);
   cmd.AddValue ("PrintExample", "Print an example configuration file and exit",
@@ -1191,6 +1193,8 @@ main (int argc, char *argv[])
   cmd.AddValue ("PrintNoBackhaulUnplanned", "Print an example configuration for unpla no backhaul and exit",
                 printNoBackhaultUnplanned);
   cmd.AddValue ("FtpProb", "Background traffic % (0<= x <= 1)", ftpProb);
+  cmd.AddValue ("Tcp", "Tcp utilized (e.g. ns3::TcpCubic)", tcp);
+  cmd.AddValue ("ClientN", "Number of client on the field", clientN);
 
   cmd.Parse    (argc, argv);
 
@@ -1222,25 +1226,25 @@ main (int argc, char *argv[])
     }
   else if (printDayToDay)
     {
-      DayToDay d2d (26, 9, ftpProb);
+      DayToDay d2d (tcp, 26, 9, 9, ftpProb);
       d2d.PrintExample();
       return 0;
     }
   else if (printPlanned)
     {
-      Planned pl (600, 103, ftpProb);
+      Planned pl (tcp, clientN, 103, 1, ftpProb);
       pl.PrintExample();
       return 0;
     }
   else if (printPlannedInfrastructureless)
     {
-      PlannedInfrastructureless pl (600, 103, ftpProb);
+      PlannedInfrastructureless pl (tcp, clientN, 103, 1, ftpProb);
       pl.PrintExample();
       return 0;
     }
   else if (printNoBackhaultUnplanned)
     {
-      Unplanned pl (610, 0, ftpProb);
+      Unplanned pl (tcp, clientN, 1, 30, ftpProb);
       pl.PrintExample();
       return 0;
     }
@@ -1264,6 +1268,9 @@ main (int argc, char *argv[])
       backhaul.Print ();
       NS_LOG_UNCOND ("#### End.");
     }
+
+  Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
+  Config::SetDefault ("ns3::DropTailQueue::MaxBytes", UintegerValue (backhaul.MaxBytes));
 
   NodeContainer lanClients; // lan clients
   NodeContainer gateways;   // gateway
