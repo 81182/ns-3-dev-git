@@ -553,6 +553,7 @@ public:
   std::string P2PDataRate; //!< Data rate of point to point links. Default 1Gb/s.
   std::string P2PQueueType; //!< Queue type installed on each node of the backhaul network.
                             //!< Default ns3::DropTailQueue.
+  uint32_t    MaxBytes;     //!< Max bytes on the queue
   bool EnablePcap;          //!< Enable Pcap output over the backhaul network.
                             //!< Default false.
 };

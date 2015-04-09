@@ -274,6 +274,7 @@ BackhaulSection::BackhaulSection () : Section ()
   DECLARE_KEY ("string", "P2PDataRate",  "", &P2PDataRate,  "1Gb/s");
   DECLARE_KEY ("string", "P2PQueueType", "", &P2PQueueType, "ns3::DropTailQueue");
   DECLARE_KEY ("bool", "EnablePcap",    "",&EnablePcap, false);
+  DECLARE_KEY ("uint32", "MaxBytes", "", &MaxBytes, 1500000);
 }
 
 NodeSection::NodeSection (const std::string &name)
