@@ -263,7 +263,13 @@ Planned::PrintGw () const
       GatewaySection gw(name.str());
 
       gw.TxPower = 40;
-      gw.EnbSrsPeriodicity = 80;
+      gw.EnbSrsPeriodicity = (m_clientN / 16) * 2 ;
+
+      while (gw.EnbSrsPeriodicity % 80 != 0)
+        {
+          ++gw.EnbSrsPeriodicity;
+        }
+
       gw.Position = positions[i];
       gw.EnbAntennaOrientation = orientations[i];
       gw.PrintExample();
