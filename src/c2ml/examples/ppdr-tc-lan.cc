@@ -1007,7 +1007,7 @@ BuildServices (NodeToConfigurationMap &configurationMap, INIReader &cfg)
 
   for (uint32_t i=0; i<UINT32_MAX; ++i)
     {
-      NS_ASSERT (i<=10000);
+      NS_ASSERT (i<=UINT32_MAX-1);
 
       std::stringstream ss;
       ss << "app" << i;
