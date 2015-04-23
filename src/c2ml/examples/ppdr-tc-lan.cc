@@ -1265,6 +1265,7 @@ main (int argc, char *argv[])
 
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::DropTailQueue::MaxBytes", UintegerValue (backhaul.MaxBytes));
+  Config::SetDefault ("ns3::TcpSocket::SegmentSize",  UintegerValue(1400));
 
   NodeContainer lanClients; // lan clients
   NodeContainer gateways;   // gateway
