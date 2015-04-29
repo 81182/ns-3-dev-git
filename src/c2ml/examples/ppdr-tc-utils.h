@@ -558,6 +558,12 @@ public:
                             //!< Default false.
 };
 
+class C2MLSection : public Section
+{
+public:
+  C2MLSection ();
+};
+
 /**
  * \brief The Node section
  *

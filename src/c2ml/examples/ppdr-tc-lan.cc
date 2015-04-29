@@ -168,7 +168,6 @@ ClientMaker (NodeContainer &lanClients, NodeToConfigurationMap &clientMap,
           //NS_LOG_INFO ("For client" << i << " id=" << client->GetId() <<
           //             " and set CCL45Protocol");
           internet.SetTcp ("ns3::CCL45Protocol");
-          NS_FATAL_ERROR ("Test C2ML First");
         }
       else
         {
@@ -1355,6 +1354,58 @@ main (int argc, char *argv[])
 
   // Build the services
   BuildServices (configurationMap, cfg);
+
+  if (general.EnableC2ML)
+    {
+      NS_LOG_INFO ("Enabling C2ML");
+
+      FOR_EACH_NODE(gateway, gateways)
+      {
+        Ptr<C2MLGateway> bmw = CreateObject<C2MLGateway> ();
+        AddressValue gatewayAddress (InetSocketAddress (
+                                     configurationMap.at (gateway)->Address, 25522));
+
+        bmw->SetAttribute ("Local", gatewayAddress);
+        bmw->SetAttribute ("Mode", UintegerValue (simulationConf.allocationProtocol));
+        if (simulationConf.inputQueueTid == "ns3::C2MLRxQueue")
+          {
+            bmw->SetAttribute("AQM", BooleanValue(true));
+
+            Ptr<C2MLRxQueue> rxQueue = CreateObject<C2MLRxQueue> ();
+            Ptr<C2MLTxQueue> txQueue = CreateObject<C2MLTxQueue> ();
+
+            rxQueue->SetQDiscManagementFriend(txQueue);
+
+            Ptr<NetDevice> sat0 = Names::Find<NetDevice> (Names::FindName (gatewayHost) +"/sat0");
+            Ptr<Ipv4L3Protocol> ipv4 = gatewayHost->GetObject<Ipv4L3Protocol> ();
+
+            ipv4->SetInputQueue(sat0, rxQueue);
+            ipv4->SetOutputQueue(sat0, txQueue);
+          }
+      else
+        {
+          ObjectFactory f;
+          f.SetTypeId(simulationConf.inputQueueTid);
+
+          Ptr<Queue> rx = DynamicCast<Queue> (f.Create());
+
+          f.SetTypeId(simulationConf.outputQueueTid);
+          Ptr<Queue> tx = DynamicCast<Queue> (f.Create());
+
+          Ptr<NetDevice> sat0 = Names::Find<NetDevice> (Names::FindName (gatewayHost) +"/sat0");
+          Ptr<Ipv4L3Protocol> ipv4 = gatewayHost->GetObject<Ipv4L3Protocol> ();
+
+          ipv4->SetInputQueue(sat0, rx);
+          ipv4->SetOutputQueue(sat0, tx);
+        }
+
+      gatewayHost->AddApplication (bmw);
+
+      ApplicationContainer bmwContainer;
+      bmwContainer.Add (bmw);
+      bmwContainer.Start (Seconds (0.0));
+      bmwContainer.Stop  (Seconds (simulationConf.stopTime));
+    }
 
   FlowMonitorHelper flowmon;
   Ptr<FlowMonitor> monitor;
