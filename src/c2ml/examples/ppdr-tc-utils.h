@@ -632,6 +632,11 @@ public:
   std::string P2PDataRate; //!< Data rate of backaul network (if applicable)
   std::string P2PQueueType;//!< Queue type over the backhaul interface
 
+  uint32_t AllocationProtocol;
+  std::string InputQueueTid;
+  std::string OutputQueueTid;
+  std::string QueueAttributes;
+
   virtual void MakeMeInstantiable() { }
 };
 
