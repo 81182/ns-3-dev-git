@@ -636,6 +636,7 @@ public:
   std::string InputQueueTid;
   std::string OutputQueueTid;
   std::string QueueAttributes;
+  uint32_t C2MLBw;
 
   virtual void MakeMeInstantiable() { }
 };

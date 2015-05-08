@@ -401,6 +401,7 @@ GatewaySection::GatewaySection (const std::string &name) : NodeSection (name)
   DECLARE_KEY ("string", "InputQueueTid", "", &InputQueueTid, "ns3::DropTailQueue");
   DECLARE_KEY ("string", "OutputQueueTid", "", &OutputQueueTid, "ns3::DropTailQueue");
   DECLARE_KEY ("string", "QueueAttributes", "", &QueueAttributes, "none");
+  DECLARE_KEY ("uint32", "C2MLBw", "", &C2MLBw, 15000);
 }
 
 Attributes::Attributes (const std::string &name)
