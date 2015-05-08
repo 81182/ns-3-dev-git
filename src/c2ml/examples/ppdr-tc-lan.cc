@@ -265,6 +265,8 @@ CreateLteLAN (NodeContainer &gateways, NodeContainer &clients,
               NodeToConfigurationMap &configurationMap, LanSection &lan,
               GeneralSection &general, LteSection &lte)
 {
+  NS_ASSERT (general.EnableC2ML == false);
+
   Config::SetDefault("ns3::MacStatsCalculator::DlOutputFilename",
                      StringValue (general.Prefix+"-lte-dlstats.txt"));
   Config::SetDefault("ns3::MacStatsCalculator::UlOutputFilename",
@@ -534,6 +536,19 @@ CreateP2PLan (NodeContainer &gateways, LanSection &lan,
                      " ip: " << ifaces.GetAddress(1));
 
         c_conf->Address = ifaces.GetAddress (0);
+        configurationMap.at(gateway)->Address = ifaces.GetAddress(1);
+
+        if (general.EnableC2ML)
+          {
+            Ptr<CCL45Protocol> mw;
+
+            mw = client->GetObject<CCL45Protocol> ();
+            NS_ASSERT_MSG (mw != 0, "Are you sure you enabled c2ml before"\
+                                    " node configuration in the cmd line?");
+
+            mw->SetAttribute ("Local", AddressValue (InetSocketAddress (c_conf->Address, 25523)));
+            mw->SetAttribute ("Remote", AddressValue (InetSocketAddress (ifaces.GetAddress(1), 25522)));
+          }
 
         if (c_conf->CsiVariation.compare("none") != 0)
           {
@@ -690,8 +705,7 @@ FlowMonStats (Ptr<FlowMonitor> monitor, FlowMonitorHelper &flowmon,
 
       if (source == 0 || dest == 0)
         {
-          NS_FATAL_ERROR ("Can't print stats for flow src=" << t.sourceAddress
-                          << " dst= " << t.destinationAddress);
+          continue;
         }
 
       std::ofstream outFile;
@@ -1042,6 +1056,7 @@ BuildServices (NodeToConfigurationMap &configurationMap, INIReader &cfg)
         }
 
       Ptr<Node> node = Names::Find<Node> (appConf->InstalledOn);
+      NS_ASSERT (Names::FindName(node) == appConf->InstalledOn);
 
       if (node == 0)
         {
@@ -1060,8 +1075,28 @@ BuildServices (NodeToConfigurationMap &configurationMap, INIReader &cfg)
     }
 }
 
-static int
-BuildAndPrintExample ()
+static std::string ActualTime ()
+{
+  std::stringstream ss;
+
+  time_t t = time(0);   // get time now
+  struct tm * now = localtime( & t );
+
+  ss << (now->tm_year + 1900) << '-'
+     << (now->tm_mon + 1) << '-'
+     <<  now->tm_mday << " "
+     <<  now->tm_hour << "-" << now->tm_min << "-" << now->tm_sec;
+
+  return ss.str();
+}
+
+static void PrintTime ()
+{
+  NS_LOG_UNCOND ("At " << ActualTime() << " Elapsed " << Simulator::Now().GetSeconds() << " seconds");
+}
+
+void
+BuildAndPrintExample (bool enableC2ML)
 {
   GeneralSection general;
   LanSection lan;
@@ -1084,8 +1119,19 @@ BuildAndPrintExample ()
   AppSection sink2 ("app5");
 
   general.RemoteN = 2;
+  general.EnableC2ML = enableC2ML;
+
   lan.ClientN = 3;
   lan.NPerG = "[gateway0:client0,client1,client2]";
+
+  if (enableC2ML)
+    {
+      lan.Type = "p2p";
+      gateway0.AllocationProtocol = 2;
+      gateway0.InputQueueTid = "ns3::C2MLRxQueue";
+      gateway0.OutputQueueTid = "ns3::C2MLTxQueue";
+      bulk0.SocketType = onOff0.SocketType = "ns3::TcpCubicMw";
+    }
 
   client0.Position = "95.0, 0.0, 1.5";
   client1.Position = "90.0, 0.0, 1.5";
@@ -1115,7 +1161,6 @@ BuildAndPrintExample ()
   sink1.InstalledOn = "client1";
   sink1.ConnectedTo = "any";
   sink1.Port = 10;
-
   sink2.AppType = "PacketSink";
   sink2.InstalledOn = "remote0";
   sink2.ConnectedTo = "any";
@@ -1140,28 +1185,6 @@ BuildAndPrintExample ()
   sink1.PrintExample();
   sink2.PrintExample();
   sink0.PrintExample();
-
-  return 0;
-}
-
-static std::string ActualTime ()
-{
-  std::stringstream ss;
-
-  time_t t = time(0);   // get time now
-  struct tm * now = localtime( & t );
-
-  ss << (now->tm_year + 1900) << '-'
-     << (now->tm_mon + 1) << '-'
-     <<  now->tm_mday << " "
-     <<  now->tm_hour << "-" << now->tm_min << "-" << now->tm_sec;
-
-  return ss.str();
-}
-
-static void PrintTime ()
-{
-  NS_LOG_UNCOND ("At " << ActualTime() << " Elapsed " << Simulator::Now().GetSeconds() << " seconds");
 }
 
 int
@@ -1179,6 +1202,7 @@ main (int argc, char *argv[])
   double        ftpProb = 0.0;
   std::string   tcp     = "ns3::TcpCubic";
   uint32_t      clientN = 600;
+  bool          enableC2ML = false;
 
   cmd.AddValue ("ConfigurationFile", "Configuration file path", configFilePath);
   cmd.AddValue ("PrintExample", "Print an example configuration file and exit",
@@ -1194,6 +1218,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("FtpProb", "Background traffic % (0<= x <= 1)", ftpProb);
   cmd.AddValue ("Tcp", "Tcp utilized (e.g. ns3::TcpCubic)", tcp);
   cmd.AddValue ("ClientN", "Number of client on the field", clientN);
+  cmd.AddValue ("EnableC2ML", "Enable C2ML framework", enableC2ML);
 
   cmd.Parse    (argc, argv);
 
@@ -1212,6 +1237,11 @@ main (int argc, char *argv[])
       NS_FATAL_ERROR ("No configuration file. Running dummy simulation.. Done.");
     }
 
+  if (!printExample && enableC2ML && configFilePath.empty ())
+    {
+      NS_FATAL_ERROR ("C2ML is supposed to work only with examples, not scenarios");
+    }
+
   INIReader cfg (configFilePath);
   GeneralSection general;
   LanSection lan;
@@ -1221,7 +1251,8 @@ main (int argc, char *argv[])
 
   if (printExample)
     {
-      return BuildAndPrintExample();
+      BuildAndPrintExample(enableC2ML);
+      return 0;
     }
   else if (printDayToDay)
     {

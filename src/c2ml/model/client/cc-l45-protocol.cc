@@ -81,9 +81,8 @@ CCL45Protocol::CreateSocket (void)
 
   if (p == 0)
     {
-      NS_FATAL_ERROR (m_socketTypeId.GetName () << " not compatible with c2ml, " <<
-                      "try to use " << m_socketTypeId.GetName () <<
-                      "Mw if you coded it");
+      std::string typeId = m_socketTypeId.GetName() + "Mw";
+      return CreateSocket (TypeId::LookupByName(typeId));
     }
 
   m_sockets.push_back (p);
@@ -326,7 +325,7 @@ CCL45Protocol::NotifyConnectionOpened (TcpMw * socket)
 
       if (res != 0)
         {
-          NS_FATAL_ERROR ("Can't connect to the gateway :-/");
+          NS_FATAL_ERROR ("Can't connect to the gateway " << m_gateway << " :-/ error=" << res);
         }
 
       m_gatewaySocket->SetRecvCallback (MakeCallback (&CCL45Protocol::HandleRead, this));

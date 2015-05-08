@@ -212,11 +212,12 @@ Statistics::Ipv4ClientRxCallback (std::string context, Ptr<const Packet> pkt,
 
   pkt->FindFirstMatchingByteTag(tag);
 
-  NS_ASSERT (!tag.GetSource().empty());
+  if (! tag.GetSource().empty())
+    {
+      std::string source = tag.GetSource();
 
-  std::string source = tag.GetSource();
-
-  ProcessPacketRcvd(source, context, pkt);
+      ProcessPacketRcvd(source, context, pkt);
+    }
 }
 
 void

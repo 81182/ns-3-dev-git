@@ -398,7 +398,7 @@ GatewaySection::GatewaySection (const std::string &name) : NodeSection (name)
   DECLARE_KEY ("string", "P2PQueueType", "", &P2PQueueType, "none");
 
   DECLARE_KEY ("uint32", "AllocationProtocol", "", &AllocationProtocol, 0);
-  DECLARE_KEY ("string", "InputQueueTid", "", &P2PQueueType, "ns3::DropTailQueue");
+  DECLARE_KEY ("string", "InputQueueTid", "", &InputQueueTid, "ns3::DropTailQueue");
   DECLARE_KEY ("string", "OutputQueueTid", "", &OutputQueueTid, "ns3::DropTailQueue");
   DECLARE_KEY ("string", "QueueAttributes", "", &QueueAttributes, "none");
 }
