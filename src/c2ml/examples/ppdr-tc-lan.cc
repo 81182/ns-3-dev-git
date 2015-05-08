@@ -608,6 +608,9 @@ CreateP2PRemote (BackhaulSection &backhaul, NodeContainer &gwToRemote,
                    << "\n\tremote addr: " << devs.Get(1)->GetAddress() <<
                    " ip: " << ifaces.GetAddress(1));
 
+      Names::Add (Names::FindName (remote) + "/sat0", devs.Get (1));
+      Names::Add (Names::FindName (gw) +"/sat0", devs.Get (0));
+
       Ipv4StaticRoutingHelper ipv4RoutingHelper;
       Ptr<Ipv4StaticRouting> remoteHostStaticRouting;
       remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting (remote->GetObject<Ipv4> ());
@@ -1118,7 +1121,7 @@ BuildAndPrintExample (bool enableC2ML)
   AppSection sink1 ("app4");
   AppSection sink2 ("app5");
 
-  general.RemoteN = 2;
+  general.RemoteN = 1;
   general.EnableC2ML = enableC2ML;
 
   lan.ClientN = 3;
@@ -1127,6 +1130,7 @@ BuildAndPrintExample (bool enableC2ML)
   if (enableC2ML)
     {
       lan.Type = "p2p";
+      gateway0.C2MLBw = 125000000;
       gateway0.AllocationProtocol = 2;
       gateway0.InputQueueTid = "ns3::C2MLRxQueue";
       gateway0.OutputQueueTid = "ns3::C2MLTxQueue";
@@ -1143,8 +1147,8 @@ BuildAndPrintExample (bool enableC2ML)
   bulk0.Port = 9;
 
   bulk1.AppType = "BulkSend";
-  bulk1.InstalledOn = "remote1";
-  bulk1.ConnectedTo = "client1";
+  bulk1.InstalledOn = "client1";
+  bulk1.ConnectedTo = "remote0";
   bulk1.Port = 10;
 
   onOff0.AppType = "OnOff";
@@ -1383,9 +1387,6 @@ main (int argc, char *argv[])
       // Static routing already did.
     }
 
-  // Build the services
-  BuildServices (configurationMap, cfg);
-
   if (general.EnableC2ML)
     {
       NS_LOG_INFO ("Enabling C2ML");
@@ -1397,27 +1398,17 @@ main (int argc, char *argv[])
         GatewaySection *conf = dynamic_cast<GatewaySection*> (s);
 
         Ptr<C2MLGateway> bmw = CreateObject<C2MLGateway> ();
-        AddressValue gatewayAddress (InetSocketAddress (conf->Address, 25522));
+        AddressValue gatewayAddress (InetSocketAddress (Ipv4Address::GetAny (), 25522));
 
+        NS_LOG_INFO ("Gateway " << Names::FindName(gateway) << " mode " << conf->AllocationProtocol << " bw " <<
+                     conf->C2MLBw);
         bmw->SetAttribute ("Local", gatewayAddress);
         bmw->SetAttribute ("Mode", UintegerValue (conf->AllocationProtocol));
+        bmw->SetAttribute ("Bandwidth", UintegerValue (conf->C2MLBw));
 
-        if (conf->InputQueueTid == "ns3::C2MLRxQueue")
-          {
-            bmw->SetAttribute("AQM", BooleanValue(true));
+        Ptr<NetDevice> sat0 = Names::Find<NetDevice> (Names::FindName (gateway) +"/sat0");
 
-            Ptr<C2MLRxQueue> rxQueue = CreateObject<C2MLRxQueue> ();
-            Ptr<C2MLTxQueue> txQueue = CreateObject<C2MLTxQueue> ();
-
-            rxQueue->SetQDiscManagementFriend(txQueue);
-
-            Ptr<NetDevice> sat0 = Names::Find<NetDevice> (Names::FindName (gateway) +"/sat0");
-            Ptr<Ipv4L3Protocol> ipv4 = gateway->GetObject<Ipv4L3Protocol> ();
-
-            ipv4->SetInputQueue(sat0, rxQueue);
-            ipv4->SetOutputQueue(sat0, txQueue);
-          }
-        else
+        if (sat0 != 0)
           {
             ObjectFactory f;
             f.SetTypeId(conf->InputQueueTid);
@@ -1427,11 +1418,23 @@ main (int argc, char *argv[])
             f.SetTypeId(conf->OutputQueueTid);
             Ptr<Queue> tx = DynamicCast<Queue> (f.Create());
 
-            Ptr<NetDevice> sat0 = Names::Find<NetDevice> (Names::FindName (gateway) +"/sat0");
+            if (conf->InputQueueTid == "ns3::C2MLRxQueue")
+              {
+                bmw->SetAttribute("AQM", BooleanValue(true));
+
+                Ptr<C2MLRxQueue> q = DynamicCast<C2MLRxQueue> (rx);
+                q->SetQDiscManagementFriend(DynamicCast<C2MLTxQueue> (tx));
+              }
+
             Ptr<Ipv4L3Protocol> ipv4 = gateway->GetObject<Ipv4L3Protocol> ();
+
+            NS_ASSERT (sat0 != 0);
 
             ipv4->SetInputQueue(sat0, rx);
             ipv4->SetOutputQueue(sat0, tx);
+
+            NS_LOG_INFO ("Created C2ML{Rx,Tx}Queue on " <<
+                         Names::FindName (gateway) << "/sat0");
           }
 
         gateway->AddApplication (bmw);
@@ -1442,6 +1445,9 @@ main (int argc, char *argv[])
         bmwContainer.Stop  (Seconds (general.StopTime));
       }
     }
+
+  // Build the services
+  BuildServices (configurationMap, cfg);
 
   FlowMonitorHelper flowmon;
   Ptr<FlowMonitor> monitor;
