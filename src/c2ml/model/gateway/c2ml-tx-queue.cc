@@ -144,8 +144,7 @@ C2MLTxQueue::TrackRcv (const Ipv4Header &ipHeader, const TcpHeader &tcpHeader)
       m_startRtt.insert(TimePair(ipHeader.GetDestination().Get(), rtt));
       Simulator::Schedule(rtt, &C2MLTxQueue::ResetData, this, ipHeader.GetDestination());
 
-      NS_LOG_DEBUG (Simulator::Now().GetSeconds() << " " << ipHeader.GetDestination() << " ACK; "
-                 << " rtt= " << rtt.GetMilliSeconds());
+      NS_LOG_DEBUG (ipHeader.GetDestination() << " ACK; rtt= " << rtt.GetMilliSeconds());
     }
 }
 
@@ -175,7 +174,7 @@ C2MLTxQueue::ShouldEnqueueOut (const Ipv4Header &ipHeader, const TcpHeader &tcpH
 
   if (flags != TcpHeader::SYN && ! IsIpAllowed (src))
     {
-      NS_LOG_DEBUG (Simulator::Now() << " NOT ALLOWED: " << src);
+      NS_LOG_DEBUG (" NOT ALLOWED: " << src);
       return false;
     }
   else if (flags == TcpHeader::SYN)
